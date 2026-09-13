@@ -1,0 +1,10 @@
+# Runtime secrets and local Python environment must never be committed.
+.env*
+!.env.example
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+dist/
+build/
+*.egg-info/
