@@ -1,0 +1,11 @@
+{
+  "name": "@mlink/ui",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "echo ui-ready",
+    "lint": "echo ui-ready",
+    "typecheck": "echo ui-ready",
+    "test": "echo ui-ready"
+  }
+}

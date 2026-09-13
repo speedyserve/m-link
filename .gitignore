@@ -1,0 +1,15 @@
+node_modules/
+.pnpm-store/
+.next/
+dist/
+coverage/
+*.log
+*.tsbuildinfo
+__pycache__/
+.pytest_cache/
+*.py[cod]
+# Secrets and machine-specific configuration. Commit only the documented
+# templates so a clone never receives a credential by accident.
+.env*
+!.env.example
+.DS_Store
