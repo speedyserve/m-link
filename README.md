@@ -1,6 +1,6 @@
 # M-Link
 
-M-Link is a local-first MVP for relationship managers. It presents a Customer 360 workspace, reads synthetic banking data from the M-Link API, and stores a traceable analysis history for each customer.
+M-Link is a local-first MVP for relationship managers. It presents a Customer 360 workspace, reads a synthetic MSB retail portfolio (20 customers x 365 daily positions) from the M-Link API, computes the MSB customer-evaluation metrics, and stores a traceable analysis history for each customer.
 
 The repository is a pnpm monorepo. It is ready for local development, an API Docker deployment (including Railway-style environment variables), and a Vercel-style Next.js web deployment.
 
@@ -33,11 +33,11 @@ The browser only knows `NEXT_PUBLIC_API_BASE_URL`. It never receives an internal
 
 The Agent intentionally uses a hybrid model:
 
-- Rule code and banking evidence determine signals, scores, guardrails, and product recommendations. For example, a fixed deposit maturing within seven days can trigger an FD recommendation.
+- The API computes the Part B metrics of the MSB framework (Recency, Frequency, CASA trend, CV, CUR, Leverage, PHS, RAS, TAV, Churn Score, Priority Score) from the daily journal and stores them in `customer_metrics`. The Agent applies the Part D decision matrix (`apps/agent/rules.py`) to those metrics and picks products from the Part A catalogue (`apps/agent/knowledge_base.py`). For example, churn score >= 60 triggers a retention scenario and leverage > 70% blocks every loan offer.
 - The optional OpenAI-compatible LLM configuration generates the consultation wording only: opening, talking points, objection handling, closing, SMS, and Zalo copy.
 - If the LLM is disabled, missing credentials, slow, or invalid, the Agent returns a safe, deterministic fallback script. It does not invent recommendations.
 
-The demo product wording, rates, and eligibility conditions are static seed/demo content. They must be replaced by a business-approved product catalogue and current policies before any production use.
+Product wording, rates and eligibility come from `Khung_cong_thuc_danh_gia_KH_MSB.docx` (msb.com.vn reference as of 18/09/2026). They are demo content and must be replaced by a business-approved catalogue and current rate sheets before any production use.
 
 ## Prerequisites
 
@@ -70,7 +70,17 @@ pnpm migration:run
 pnpm db:seed
 ```
 
-`db:reset` and `demo:reset` are local-only helpers and are refused in production.
+The seed always truncates and reloads the dataset; `db:reset` and `demo:reset` are aliases, refused in production.
+
+### The MSB sample dataset
+
+`apps/api/src/database/msb-dataset/` holds the committed export of `Data_mau_365ngay_20KH.xlsx`: 20 customers, the 13-line product-holding matrix, Next Best Offer ranks, credit limits, the 7,300-row daily journal and the golden metric values of sheet *Chỉ số đánh giá KH*. The as-of date is 2026-09-18 (last journal day). Regenerate it from a new workbook with the standard-library script:
+
+```bash
+python3 apps/agent/tools/export_msb_dataset.py "~/Downloads/Data_mau_365ngay_20KH.xlsx"
+```
+
+`apps/api/src/modules/metrics/metrics.formulas.spec.ts` asserts that the TypeScript formulas reproduce every golden row within a relative tolerance of 1e-6.
 
 ### 3. Start web and API
 
@@ -117,10 +127,17 @@ cd apps/agent
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python -m uvicorn main:app --host 0.0.0.0 --port 8081
+python -m uvicorn main:app --host 0.0.0.0 --port 8081 --reload
 ```
 
 Restart `pnpm dev` after changing `apps/api/.env`. The Agent must also be restarted after changing `apps/agent/.env`.
+
+> **Use `--reload` locally.** Uvicorn keeps the Agent's code in memory, so an Agent started before a
+> change keeps answering with the old logic — for example ignoring the analysed period and replying
+> with the default 90-day snapshot for every window. The API detects that case: the analysis then
+> reports `periodApplied: false` and the UI shows "the Agent ignored the selected period". Also make
+> sure only one Agent process is listening on the port (`lsof -nP -iTCP:8081 -sTCP:LISTEN`); a second
+> one bound to a different interface can shadow the one you just started.
 
 ### Optional: enable GreenNode LLM content generation
 
@@ -149,28 +166,36 @@ Use the UI: choose **RM001**, open a customer, then select **Phân tích với M
 Or call the public API directly:
 
 ```bash
-curl -X POST http://localhost:4000/api/customers/CUS001/analyze \
+curl -X POST http://localhost:4000/api/customers/08102466/analyze \
   -H 'Content-Type: application/json' \
   -H 'X-RM-ID: RM001' \
-  --data '{"locale":"vi"}'
+  --data '{"locale":"vi","periodFrom":"2026-08-20","periodTo":"2026-09-18"}'
 ```
+
+`periodFrom`/`periodTo` are optional and default to the last 90 days of the customer's journal. The
+analysis follows that window: metrics are recomputed for it, three period rules can fire from it,
+and the window is echoed back on the analysis and its history entries.
 
 The public API requires `X-RM-ID` as a demo portfolio-scoping mechanism. It is not production authentication.
 
 Stable demo customers:
 
-| Customer | Expected scenario |
+| CIF | Expected scenario |
 | --- | --- |
-| `CUS001` | Sales opportunity: fixed deposit maturity and idle cash |
-| `CUS002` | Customer Care First / Do Not Sell |
-| `CUS003` | No Action |
-| `CUS013` | No Action: no rule threshold is met |
+| `08102466` | At risk: 229 idle days, churn score 63.7, retention first |
+| `08100548` | Leverage 59x: loan-protection insurance, no loan offers |
+| `08101096` | CASA +16.3% without bonds: MSB certificates of deposit, FX package |
+| `08101918` | Customer Care First / Do Not Sell (open complaint) |
+| `08102740` | Highest value (Priority 53.5), top of the RB queue |
+| `08101507` | No action: core customer, `MAINTAIN` |
+
+Customers are split across RMs by branch: **RM001** (HCM branches), **RM002** (Hanoi branches and Sở Giao Dịch), **RM003** (Đà Nẵng). The RB queue at `GET /api/metrics/queue` and the dashboard are ordered by Priority Score. See [Demo scenarios](docs/DEMO-SCENARIOS.md).
 
 ## Develop further
 
-- Add or adjust a detectable banking condition in `apps/agent/signal_extractor.py`.
-- Keep score calculation explainable in `apps/agent/scorer.py`.
-- Add a product only with an approved policy source; move product catalogue data out of static Python code before production.
+- Change a metric formula in `apps/api/src/modules/metrics/metrics.formulas.ts` and keep the golden test green (or update the golden export together with the business owner).
+- Add or adjust a consultation rule in `apps/agent/rules.py`; every rule has a unit test in `apps/agent/tests/test_rules.py`.
+- Add a product only with an approved policy source in `apps/agent/knowledge_base.py`; move the catalogue out of static Python code before production.
 - Extend `packages/contracts` first when changing any API or Agent response, then update both `apps/api` and `apps/web`.
 - Add an Agent test for each new signal, guardrail, provider failure, or response shape.
 - Preserve the invariant that `DO NOT SELL` returns zero product CTAs.

@@ -35,8 +35,16 @@ export class Customer {
   @Column({ name: 'customer_since', type: 'date' }) customerSince: string;
   @Column() phone: string;
   @Column() email: string;
-  @Column() occupation: string;
+  @Column({ type: 'varchar', nullable: true }) occupation: string | null;
   @Column({ name: 'relationship_status' }) relationshipStatus: string;
+  // MSB evaluation framework attributes (sheet "Danh sách KH & Phân hạng").
+  @Column({ type: 'varchar', nullable: true }) cif: string | null;
+  @Column({ type: 'varchar', nullable: true }) branch: string | null;
+  @Column({ default: 'Mass' }) tier: string;
+  @Column({ name: 'declared_behaviour', type: 'varchar', nullable: true }) declaredBehaviour: string | null;
+  @Column({ name: 'declared_risk_appetite', type: 'varchar', nullable: true }) declaredRiskAppetite: string | null;
+  @Column({ name: 'churn_warning', default: false }) churnWarning: boolean;
+  @Column({ name: 'behaviour_note', type: 'text', nullable: true }) behaviourNote: string | null;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
 }
@@ -101,9 +109,9 @@ export class Deposit {
   @ManyToOne(() => Customer) @JoinColumn({ name: 'customer_id' }) customer: Customer;
   @Column({ name: 'product_name' }) productName: string;
   @Column('numeric', { precision: 20, scale: 2 }) principal: string;
-  @Column('numeric', { name: 'interest_rate', precision: 7, scale: 4 }) interestRate: string;
+  @Column('numeric', { name: 'interest_rate', precision: 7, scale: 4, nullable: true }) interestRate: string | null;
   @Column({ name: 'start_date', type: 'date' }) startDate: string;
-  @Column({ name: 'maturity_date', type: 'date' }) maturityDate: string;
+  @Column({ name: 'maturity_date', type: 'date', nullable: true }) maturityDate: string | null;
   @Column() status: string;
 }
 
@@ -192,6 +200,109 @@ export class RecommendationFeedback {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
 }
 
+const money = { type: 'numeric' as const, precision: 20, scale: 2 };
+
+/** One row per customer per calendar day: sheet "Nhật ký 365 ngày" (32 columns). */
+@Entity('customer_daily_positions')
+@Index(['customerId', 'dayIndex'])
+export class CustomerDailyPosition {
+  @PrimaryColumn({ name: 'customer_id' }) customerId: string;
+  @ManyToOne(() => Customer, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'customer_id' }) customer: Customer;
+  @PrimaryColumn({ name: 'position_date', type: 'date' }) positionDate: string;
+  @Column({ name: 'month_key', type: 'integer' }) monthKey: number;
+  @Column({ name: 'day_index', type: 'smallint' }) dayIndex: number;
+  @Column({ name: 'account_balance', ...money }) accountBalance: string;
+  @Column({ name: 'casa_balance', ...money }) casaBalance: string;
+  @Column({ name: 'fd_balance', ...money }) fdBalance: string;
+  @Column({ name: 'bond_balance', ...money }) bondBalance: string;
+  @Column({ name: 'fund_cert_value', ...money }) fundCertValue: string;
+  @Column({ name: 'loan_advance', ...money }) loanAdvance: string;
+  @Column({ name: 'loan_overdraft', ...money }) loanOverdraft: string;
+  @Column({ name: 'loan_unsecured', ...money }) loanUnsecured: string;
+  @Column({ name: 'loan_mortgage', ...money }) loanMortgage: string;
+  @Column({ name: 'loan_total', ...money }) loanTotal: string;
+  @Column({ name: 'credit_card_balance', ...money }) creditCardBalance: string;
+  @Column({ name: 'credit_card_spend', ...money }) creditCardSpend: string;
+  @Column({ name: 'fx_volume', ...money }) fxVolume: string;
+  @Column({ name: 'banca_life_premium', ...money }) bancaLifePremium: string;
+  @Column({ name: 'banca_nonlife_premium', ...money }) bancaNonlifePremium: string;
+  @Column({ name: 'mobile_topup', ...money }) mobileTopup: string;
+  @Column({ name: 'bill_payment', ...money }) billPayment: string;
+  @Column({ name: 'securities_net', ...money }) securitiesNet: string;
+  @Column({ name: 'flight_ticket', ...money }) flightTicket: string;
+  @Column({ name: 'bus_ticket', ...money }) busTicket: string;
+  @Column({ name: 'vietlott', ...money }) vietlott: string;
+  @Column({ name: 'loan_repayment', ...money }) loanRepayment: string;
+  @Column({ name: 'genetica_fee', ...money }) geneticaFee: string;
+  @Column({ name: 'advisory_fee', ...money }) advisoryFee: string;
+  @Column({ name: 'western_union_fee', ...money }) westernUnionFee: string;
+  @Column({ name: 'nice_account_fee', ...money }) niceAccountFee: string;
+  @Column({ name: 'txn_count', type: 'integer' }) txnCount: number;
+  @Column({ name: 'is_active', type: 'boolean' }) isActive: boolean;
+}
+
+/** Sheet "Product Holding": 13 product lines, 1 = held. */
+@Entity('product_holdings')
+export class ProductHolding {
+  @PrimaryColumn({ name: 'customer_id' }) customerId: string;
+  @ManyToOne(() => Customer, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'customer_id' }) customer: Customer;
+  @PrimaryColumn({ name: 'product_code' }) productCode: string;
+  @Column({ type: 'boolean', default: false }) held: boolean;
+}
+
+/** Sheet "Next Best Offer": static rank per unheld product family, NULL = already owned. */
+@Entity('next_best_offers')
+export class NextBestOffer {
+  @PrimaryColumn({ name: 'customer_id' }) customerId: string;
+  @ManyToOne(() => Customer, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'customer_id' }) customer: Customer;
+  @PrimaryColumn({ name: 'product_code' }) productCode: string;
+  @Column({ type: 'smallint', nullable: true }) rank: number | null;
+}
+
+/** Part B metric snapshot per customer and as-of date (sheet "Chỉ số đánh giá KH"). */
+@Entity('customer_metrics')
+@Index(['asOfDate', 'priorityScore'])
+export class CustomerMetric {
+  @PrimaryColumn({ name: 'customer_id' }) customerId: string;
+  @ManyToOne(() => Customer, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'customer_id' }) customer: Customer;
+  @PrimaryColumn({ name: 'as_of_date', type: 'date' }) asOfDate: string;
+  @Column({ name: 'recency_days', type: 'integer' }) recencyDays: number;
+  @Column({ name: 'freq_90', type: 'integer' }) freq90: number;
+  @Column({ name: 'freq_prev_90', type: 'integer' }) freqPrev90: number;
+  @Column({ name: 'casa_avg_90', ...money }) casaAvg90: string;
+  @Column({ name: 'casa_avg_prev_90', ...money }) casaAvgPrev90: string;
+  @Column({ name: 'casa_trend', type: 'double precision' }) casaTrend: number;
+  @Column({ name: 'casa_cv', type: 'double precision' }) casaCv: number;
+  @Column({ name: 'cc_avg_balance_90', ...money }) ccAvgBalance90: string;
+  @Column({ name: 'credit_limit', ...money }) creditLimit: string;
+  @Column({ type: 'double precision' }) cur: number;
+  @Column({ name: 'loan_total', ...money }) loanTotal: string;
+  @Column({ name: 'fd_current', ...money }) fdCurrent: string;
+  @Column({ name: 'fd_avg_prev_90', ...money }) fdAvgPrev90: string;
+  @Column({ name: 'fd_liquidated', type: 'boolean' }) fdLiquidated: boolean;
+  @Column({ name: 'bond_current', ...money }) bondCurrent: string;
+  @Column({ name: 'fund_cert_current', ...money }) fundCertCurrent: string;
+  @Column({ ...money }) tav: string;
+  @Column({ type: 'double precision' }) leverage: number;
+  @Column({ type: 'double precision' }) phs: number;
+  @Column({ name: 'holding_count', type: 'smallint' }) holdingCount: number;
+  @Column({ name: 'fx_volume_12m', ...money }) fxVolume12m: string;
+  @Column({ name: 'ras_raw', type: 'double precision' }) rasRaw: number;
+  @Column({ type: 'double precision' }) ras: number;
+  @Column({ name: 'value_score', type: 'double precision' }) valueScore: number;
+  @Column({ name: 'churn_score', type: 'double precision' }) churnScore: number;
+  @Column({ name: 'churn_label' }) churnLabel: string;
+  @Column({ name: 'cross_sell_score', type: 'double precision' }) crossSellScore: number;
+  @Column({ name: 'priority_score', type: 'double precision' }) priorityScore: number;
+  @Column({ name: 'behaviour_label' }) behaviourLabel: string;
+  @Column({ name: 'risk_appetite_label' }) riskAppetiteLabel: string;
+  @Column({ name: 'tier_label' }) tierLabel: string;
+  @Column({ name: 'phs_label' }) phsLabel: string;
+  @Column({ name: 'suggestion_code' }) suggestionCode: string;
+  @Column({ name: 'is_new_cif', type: 'boolean', default: false }) isNewCif: boolean;
+  @Column({ name: 'computed_at', type: 'timestamptz', default: () => 'now()' }) computedAt: Date;
+}
+
 export const entities = [
   RMUser,
   Customer,
@@ -204,4 +315,8 @@ export const entities = [
   Recommendation,
   RecommendationEvidence,
   RecommendationFeedback,
+  CustomerDailyPosition,
+  ProductHolding,
+  NextBestOffer,
+  CustomerMetric,
 ];

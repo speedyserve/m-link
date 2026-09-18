@@ -1,11 +1,12 @@
 import { AppDataSource } from './data-source';
 import { seedDatabase } from './seed';
 
+/** `db:reset` is an alias of `db:seed` now that the seed always truncates; kept for the documented scripts. */
 async function reset() {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('Database reset is disabled in production');
   }
-  await seedDatabase(true);
+  await seedDatabase();
   await AppDataSource.destroy();
   console.log('Demo database reset completed');
 }

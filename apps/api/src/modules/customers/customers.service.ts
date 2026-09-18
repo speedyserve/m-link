@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { tierSchema } from '@mlink/contracts';
 import { z } from 'zod';
 import { DomainException, parseWith } from '../../common/http';
 import {
@@ -11,11 +12,13 @@ import {
   CustomerInteraction,
   Deposit,
 } from '../../database/entities';
+import { MetricsService } from '../metrics/metrics.service';
 import { RmsService } from '../rms/rms.service';
 
 const customerQuerySchema = z.object({
   search: z.string().trim().max(100).optional(),
   segment: z.enum(['MASS', 'MASS_AFFLUENT', 'PRIORITY', 'PRIVATE']).optional(),
+  tier: tierSchema.optional(),
   status: z.enum(['HEALTHY', 'NEEDS_ATTENTION', 'AT_RISK']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -40,6 +43,7 @@ export class CustomersService {
     @InjectRepository(Deposit) private readonly deposits: Repository<Deposit>,
     @InjectRepository(CustomerInteraction) private readonly interactions: Repository<CustomerInteraction>,
     private readonly rms: RmsService,
+    private readonly metrics: MetricsService,
   ) {}
 
   async assertCustomer(id: string, rmId?: string) {
@@ -59,6 +63,7 @@ export class CustomersService {
       builder.andWhere('(customer.full_name ILIKE :search OR customer.customer_code ILIKE :search)', { search: `%${query.search}%` });
     }
     if (query.segment) builder.andWhere('customer.segment = :segment', { segment: query.segment });
+    if (query.tier) builder.andWhere('customer.tier = :tier', { tier: query.tier });
     if (query.status) builder.andWhere('customer.relationship_status = :status', { status: query.status });
     const [items, total] = await builder.orderBy('customer.full_name', 'ASC')
       .skip((page - 1) * limit).take(limit).getManyAndCount();
@@ -67,8 +72,9 @@ export class CustomersService {
 
   async detail(id: string, rmId?: string) {
     const customer = await this.assertCustomer(id, rmId);
-    const [accountRows, deposits, cards] = await Promise.all([
-      this.accounts.findBy({ customerId: id }), this.deposits.findBy({ customerId: id }), this.cards.findBy({ customerId: id }),
+    const [accountRows, deposits, cards, metrics, holdings] = await Promise.all([
+      this.accounts.findBy({ customerId: id }), this.deposits.findBy({ customerId: id, status: 'ACTIVE' }),
+      this.cards.findBy({ customerId: id }), this.metrics.findLatest(id), this.metrics.listHoldings(id),
     ]);
     const totalAssets = accountRows.reduce((sum, row) => sum + Number(row.balance), 0) + deposits.reduce((sum, row) => sum + Number(row.principal), 0);
     return {
@@ -79,6 +85,8 @@ export class CustomersService {
         deposits: deposits.reduce((sum, row) => sum + Number(row.principal), 0).toFixed(2),
         creditLimit: cards.reduce((sum, row) => sum + Number(row.creditLimit), 0).toFixed(2),
       },
+      metrics,
+      holdings,
     };
   }
 
@@ -110,7 +118,7 @@ export class CustomersService {
   }
   async listDeposits(id: string, rmId?: string) {
     await this.assertCustomer(id, rmId);
-    return this.deposits.find({ where: { customerId: id }, order: { maturityDate: 'ASC' } });
+    return this.deposits.find({ where: { customerId: id }, order: { status: 'ASC', startDate: 'ASC' } });
   }
   async listInteractions(id: string, rmId?: string) {
     await this.assertCustomer(id, rmId);

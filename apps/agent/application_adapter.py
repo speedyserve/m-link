@@ -1,289 +1,240 @@
-"""Transforms banking snapshots into engine input and public M-Link Agent responses."""
+"""Turns the Application's customer context (Part B metrics, holdings, NBO, interactions)
+into the public M-Link Agent response using the Part D rule engine."""
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
 from uuid import uuid4
 
-from application_client import BankingSnapshot
-from engine import analyze
+from application_client import CustomerContext, window_days
+from generator import TalkingItem, generate_consultation_content
 from models import (
-    CASAInput,
-    CreditCardInput,
-    CustomerDataInput,
-    FixedDepositInput,
     MLinkAnalysisResponse,
     MLinkAnalyzeRequest,
     MLinkEvidence,
     MLinkGuardrail,
+    MLinkPeriod,
     MLinkProduct,
     MLinkRecommendation,
     MLinkSignal,
     MLinkSummary,
-    PaymentHistory,
-    ProductsInput,
-    SpendingCategory,
+)
+from rules import (
+    CHURN_HIGH,
+    CUR_HIGH,
+    LEVERAGE_HIGH,
+    PERIOD_CARD_SPEND_TO_LIMIT,
+    PERIOD_CASA_DROP,
+    PERIOD_MIN_DAYS_FOR_CARD_SPEND,
+    PERIOD_MIN_DAYS_FOR_INACTIVITY,
+    RAS_HIGH,
+    RECENCY_DORMANT,
+    TREND_SURGE,
+    PeriodFacts,
+    RuleContext,
+    RuleHit,
+    evaluate,
+    format_metric,
+    format_period,
 )
 
-
-def _amount(value: object) -> int:
-    try:
-        return int(float(str(value)))
-    except (TypeError, ValueError):
-        return 0
-
-
-def _as_of_date() -> date:
-    return datetime.now(timezone.utc).date()
-
-
-def _parse_date(value: object) -> date | None:
-    try:
-        return date.fromisoformat(str(value)[:10])
-    except (TypeError, ValueError):
-        return None
-
-
-def _days_from(value: object, reference: date) -> int:
-    parsed = _parse_date(value)
-    return max(0, (reference - parsed).days) if parsed else 0
-
-
-def _days_to(value: object, reference: date) -> int:
-    parsed = _parse_date(value)
-    return (parsed - reference).days if parsed else 999
-
-
-def to_engine_input(snapshot: BankingSnapshot) -> CustomerDataInput:
-    reference = _as_of_date()
-    customer = snapshot.customer
-    casa_accounts = [account for account in snapshot.accounts if account.get("type") == "CASA"]
-    casa_balance = sum(_amount(account.get("balance")) for account in casa_accounts)
-    recent_credit = next(
-        (transaction for transaction in snapshot.transactions if transaction.get("type") == "CREDIT"),
-        None,
-    )
-    recent_inflow = None
-    if recent_credit:
-        recent_inflow = {
-            "amount_vnd": _amount(recent_credit.get("amount")),
-            "received_date": str(recent_credit.get("transactionAt", ""))[:10],
-            "days_idle": _days_from(recent_credit.get("transactionAt"), reference),
-            "transaction_code": recent_credit.get("transactionCode") or recent_credit.get("id"),
-        }
-
-    deposits = [
-        FixedDepositInput(
-            account_ref=str(deposit.get("id") or deposit.get("productName") or "FD"),
-            principal_vnd=_amount(deposit.get("principal")),
-            term_months=max(1, round(max(1, _days_from(deposit.get("startDate"), reference)) / 30)),
-            maturity_date=str(deposit.get("maturityDate", "")),
-            days_to_maturity=_days_to(deposit.get("maturityDate"), reference),
-            # The banking contract does not expose rollover state yet. Golden demo
-            # deposits are intentionally non-rollover; a production feed should add it.
-            auto_rollover=False,
-        )
-        for deposit in snapshot.deposits
-        if deposit.get("status") == "ACTIVE"
-    ]
-
-    debit_transactions = [
-        transaction
-        for transaction in snapshot.transactions
-        if transaction.get("type") == "DEBIT"
-    ]
-    spend_by_category: dict[str, int] = {}
-    for transaction in debit_transactions:
-        category = str(transaction.get("category") or "OTHER")
-        spend_by_category[category] = spend_by_category.get(category, 0) + _amount(
-            transaction.get("amount")
-        )
-    total_spend = sum(spend_by_category.values())
-    card_input = None
-    if snapshot.cards:
-        card = snapshot.cards[0]
-        categories = [
-            SpendingCategory(category=name, share=value / total_spend)
-            for name, value in sorted(spend_by_category.items(), key=lambda item: item[1], reverse=True)
-            if total_spend
-        ]
-        card_input = CreditCardInput(
-            credit_limit_vnd=_amount(card.get("creditLimit")),
-            average_monthly_spend_vnd=total_spend,
-            utilization_rate=(
-                1 - (_amount(card.get("availableLimit")) / _amount(card.get("creditLimit")))
-                if _amount(card.get("creditLimit"))
-                else 0
-            ),
-            top_spending_categories=categories,
-            # Payment history is not exposed by the current banking schema, so do
-            # not manufacture a positive eligibility signal.
-            payment_history=PaymentHistory(
-                full_payment_rate=0, late_payment_count_12m=0
-            ),
-        )
-
-    return CustomerDataInput(
-        cif=str(customer.get("customerCode") or customer.get("id")),
-        customer_name=str(customer.get("fullName") or "Unknown customer"),
-        segment=str(customer.get("segment") or ""),
-        as_of_date=reference.isoformat(),
-        products=ProductsInput(
-            casa=CASAInput(
-                average_balance_vnd=casa_balance,
-                average_balance_range_vnd=[casa_balance, casa_balance],
-                recent_inflow=recent_inflow,
-            ),
-            fixed_deposit=deposits,
-            credit_card=card_input,
-        ),
-    )
+CARE_FIRST_REASON = "Open complaint and repeated negative customer contacts"
 
 
 def _open_complaints(interactions: list[dict]) -> list[dict]:
     return [
-        interaction
-        for interaction in interactions
-        if interaction.get("status") == "OPEN"
-        and interaction.get("sentiment") == "NEGATIVE"
+        interaction for interaction in interactions
+        if interaction.get("status") == "OPEN" and interaction.get("sentiment") == "NEGATIVE"
     ]
 
 
-def _severity(heat: str) -> str:
-    return {"high": "high", "medium": "medium"}.get(heat, "low")
+def _round1(value: float) -> float:
+    return round(max(0.0, min(100.0, value)), 1)
 
 
-def _source_for_product_group(group: str) -> str:
-    return {
-        "CASA": "transaction",
-        "FD": "deposit",
-        "CREDIT_CARD": "card",
-        "VAS": "interaction",
-        "BOND": "account",
-    }.get(group, "customer")
+def _response_period(request: MLinkAnalyzeRequest, context: CustomerContext) -> MLinkPeriod | None:
+    """The window actually analysed: the Application's resolved range when it sent one."""
+    facts = PeriodFacts.from_summary(context.period_summary)
+    if facts and facts.from_date and facts.to_date:
+        return MLinkPeriod(from_date=facts.from_date, to=facts.to_date, windowDays=facts.days)
+    window = window_days(request.periodFrom, request.periodTo)
+    if request.periodFrom and request.periodTo and window:
+        return MLinkPeriod(from_date=request.periodFrom, to=request.periodTo, windowDays=window)
+    return None
 
 
-def _script_for(signal: object, output: object) -> str:
-    consultation = getattr(output, "consultation_script", None)
-    if not consultation:
-        return signal.next_best_action.action
-    point = next(
-        (
-            item
-            for item in consultation.main_points
-            if item.title == signal.next_best_action.product_name
-        ),
-        None,
+def build_signals(ctx: RuleContext) -> list[MLinkSignal]:
+    """Metric-level signals (Part B/C) plus facts of the analysed window."""
+    m = ctx.metrics
+    window = m.windowDays
+    signals: list[MLinkSignal] = []
+
+    def add(type_: str, title: str, severity: str, confidence: float, description: str) -> None:
+        signals.append(MLinkSignal(type=type_, title=title, severity=severity, confidence=confidence, description=description))
+
+    if m.churnLabel == "Cao":
+        add("churn_high", "Rủi ro rời bỏ CAO", "high", 0.95,
+            f"Churn Score {format_metric(m, 'churnScore')}; {m.recencyDays} ngày không phát sinh giao dịch; xu hướng CASA {format_metric(m, 'casaTrend')}.")
+    elif m.churnLabel == "Trung bình":
+        add("churn_medium", "Rủi ro rời bỏ trung bình", "medium", 0.85,
+            f"Churn Score {format_metric(m, 'churnScore')}; xu hướng CASA {window} ngày {format_metric(m, 'casaTrend')}.")
+    if m.leverage > LEVERAGE_HIGH:
+        add("leverage_high", "Đòn bẩy tài chính cao", "high", 0.97,
+            f"Dư nợ vay / tài sản quy đổi = {format_metric(m, 'leverage')} ({format_metric(m, 'loanTotal')} / {format_metric(m, 'tav')}).")
+    if m.cur > CUR_HIGH:
+        add("cur_high", "Tỷ lệ dùng hạn mức thẻ cao", "high", 0.93,
+            f"CUR {window} ngày = {format_metric(m, 'cur')} trên hạn mức {format_metric(m, 'creditLimit')}.")
+    elif m.cur > 0.5:
+        add("cur_elevated", "Dùng hạn mức thẻ đáng chú ý", "medium", 0.8, f"CUR {window} ngày = {format_metric(m, 'cur')}.")
+    if m.recencyDays > RECENCY_DORMANT:
+        add("dormant", "Không giao dịch lâu ngày", "high", 0.9, f"{m.recencyDays} ngày kể từ giao dịch gần nhất.")
+    if m.fdLiquidated:
+        add("fd_liquidated", "Sổ tiết kiệm đã tất toán giữa kỳ", "medium", 0.9,
+            f"FD hiện tại 0 VND, bình quân cửa sổ liền trước {format_metric(m, 'fdAvgPrev90')}.")
+    if m.casaTrend > TREND_SURGE:
+        add("casa_surge", "CASA tăng mạnh", "medium", 0.9,
+            f"CASA bình quân {window} ngày {format_metric(m, 'casaTrend')} so với {window} ngày liền trước ({format_metric(m, 'casaAvg90')}).")
+    elif m.casaTrend < -0.05:
+        add("casa_decline", "CASA giảm", "medium", 0.88, f"CASA bình quân {window} ngày {format_metric(m, 'casaTrend')}.")
+    if m.rasRaw > RAS_HIGH and ctx.declared_risk_appetite == "An toàn":
+        add("risk_mismatch", "Lệch khẩu vị rủi ro", "medium", 0.85,
+            f"RAS thực tế {format_metric(m, 'rasRaw')} nhưng khẩu vị khai báo An toàn.")
+    elif m.ras > RAS_HIGH:
+        add("risk_appetite_high", "Khẩu vị rủi ro thực tế cao", "low", 0.8,
+            f"RAS = {format_metric(m, 'ras')} (Bond + CCQ + FX 12 tháng / TAV).")
+    if m.phsLabel == "Chưa khai thác":
+        add("under_penetrated", "Chưa khai thác sản phẩm", "low", 0.85, f"Đang có {m.holdingCount}/13 dòng sản phẩm (PHS {format_metric(m, 'phs')}).")
+    if m.valueScore >= 100:
+        add("top_value", "Giá trị cao nhất danh mục", "medium", 0.9, f"Value Score 100/100, TAV {format_metric(m, 'tav')}.")
+
+    period = ctx.period
+    if period:
+        if period.days >= PERIOD_MIN_DAYS_FOR_INACTIVITY and period.active_days == 0:
+            add("inactive_in_period", "Không giao dịch trong kỳ", "high", 0.95,
+                f"Kỳ {period.label}: {format_period(period, 'activeDays')}.")
+        if period.casa_start > 0 and period.casa_change_ratio <= PERIOD_CASA_DROP:
+            add("casa_drop_in_period", "CASA giảm mạnh trong kỳ", "high", 0.9,
+                f"CASA {format_period(period, 'casaStart')} → {format_period(period, 'casaEnd')} "
+                f"({format_period(period, 'casaChange')}) trong kỳ {period.label}.")
+        limit = m.amount("creditLimit")
+        if (
+            period.days >= PERIOD_MIN_DAYS_FOR_CARD_SPEND
+            and limit > 0
+            and period.monthly_card_spend >= PERIOD_CARD_SPEND_TO_LIMIT * limit
+            and m.cur <= CUR_HIGH
+        ):
+            add("card_spend_high_in_period", "Chi tiêu thẻ cao trong kỳ", "medium", 0.85,
+                f"Chi tiêu thẻ {format_period(period, 'cardSpend')} trong kỳ {period.label}, "
+                f"quy về tháng {format_period(period, 'cardSpendMonthly')} trên hạn mức {format_metric(m, 'creditLimit')}.")
+    return signals
+
+
+def _headline(ctx: RuleContext) -> str:
+    m = ctx.metrics
+    window = f"Kỳ phân tích {ctx.period.label}. " if ctx.period else ""
+    return (
+        f"{window}Khách hàng {ctx.customer.get('tier') or m.tierLabel}, hành vi {m.behaviourLabel.lower()}, "
+        f"khẩu vị rủi ro thực tế {m.riskAppetiteLabel.lower()}, Priority Score {m.priorityScore:.1f}/100 "
+        f"(cửa sổ {m.windowDays} ngày), rủi ro rời bỏ {m.churnLabel.lower()}."
     )
-    talking_point = point.talking_point if point else signal.next_best_action.action
-    return " ".join(
-        part
-        for part in [consultation.opening, talking_point, consultation.closing]
-        if part
+
+
+def _confidence(hit: RuleHit, ctx: RuleContext) -> float:
+    base = {"high": 0.9, "medium": 0.8, "low": 0.7}.get(hit.rule.severity, 0.7)
+    return round(min(0.99, base + 0.09 * min(1.0, ctx.metrics.priorityScore / 100)), 2)
+
+
+def _recommendation(index: int, hit: RuleHit, ctx: RuleContext, script: str) -> MLinkRecommendation:
+    m = ctx.metrics
+    product = hit.primary_product
+    period_reference = f"period_summary:{m.customerId}:{ctx.period.from_date}..{ctx.period.to_date}" if ctx.period else None
+    evidence = [
+        MLinkEvidence(
+            type="period" if item.source == "period_summary" else "metric",
+            title=item.field,
+            description=(
+                f"{item.field} = {item.value} (kỳ {ctx.period.label})"
+                if item.source == "period_summary" and ctx.period
+                else f"{item.field} = {item.value} (as of {m.asOfDate})"
+            ),
+            source=item.source,
+            sourceReference=period_reference if item.source == "period_summary" else f"customer_metrics:{m.customerId}:{m.asOfDate}",
+        )
+        for item in hit.evidence
+    ]
+    reasons = [hit.rule.rationale] + [f"{item.field}: {item.value}" for item in hit.evidence]
+    if len(hit.products) > 1:
+        reasons.append("Sản phẩm thay thế: " + "; ".join(p.name for p in hit.products[1:]))
+    return MLinkRecommendation(
+        priority=index, type=hit.rule.rec_type, title=hit.rule.title,
+        description=(f"{product.summary} {product.rate_or_fee}" if product else hit.rule.rationale).strip(),
+        confidence=_confidence(hit, ctx),
+        product=MLinkProduct(id=product.product_id, name=product.name) if product else None,
+        reasons=reasons, evidence=evidence, script=script,
     )
 
 
-def to_mlink_response(
-    request: MLinkAnalyzeRequest, snapshot: BankingSnapshot
-) -> MLinkAnalysisResponse:
-    engine_input = to_engine_input(snapshot)
-    output = analyze(engine_input)
-    complaints = _open_complaints(snapshot.interactions)
+def _script_for(hit: RuleHit, consultation: dict) -> str:
+    product_name = hit.primary_product.name if hit.primary_product else hit.rule.title
+    point = next((p for p in consultation.get("main_points", []) if p.get("title") == product_name), None)
+    talking = (point or {}).get("talking_point") or hit.rule.title
+    return " ".join(part for part in [consultation.get("opening", ""), talking, consultation.get("closing", "")] if part)
 
+
+def to_mlink_response(request: MLinkAnalyzeRequest, context: CustomerContext) -> MLinkAnalysisResponse:
+    run_id = f"RUN-AGENT-{uuid4()}"
+    period = _response_period(request, context)
+    # Customer Care First is evaluated on the customer's current state, never narrowed by the
+    # analysed window: an open complaint blocks selling even when reviewing an earlier period.
+    complaints = _open_complaints(context.interactions)
     if complaints:
         complaint = complaints[0]
-        reason = "Open complaint and repeated negative customer contacts"
         return MLinkAnalysisResponse(
-            runId=f"RUN-AGENT-{uuid4()}",
-            customerId=request.customerId,
-            summary=MLinkSummary(
-                relationshipStatus="customer_care_first",
-                opportunityScore=0,
-                overview="Resolve the open complaint before any product conversation.",
-            ),
-            signals=[
-                MLinkSignal(
-                    type="open_complaint",
-                    title="Open customer complaint",
-                    severity="high",
-                    confidence=0.99,
-                    description=str(
-                        complaint.get("summary")
-                        or complaint.get("subject")
-                        or "Customer service issue requires resolution."
-                    ),
-                )
-            ],
+            runId=run_id, customerId=request.customerId, period=period,
+            summary=MLinkSummary(relationshipStatus="customer_care_first", opportunityScore=0,
+                                 overview="Resolve the open complaint before any product conversation."),
+            signals=[MLinkSignal(type="open_complaint", title="Open customer complaint", severity="high", confidence=0.99,
+                                 description=str(complaint.get("summary") or complaint.get("subject") or "Customer service issue requires resolution."))],
             recommendations=[],
-            guardrail=MLinkGuardrail(sellAllowed=False, reason=reason),
+            guardrail=MLinkGuardrail(sellAllowed=False, reason=CARE_FIRST_REASON),
         )
 
-    if output.status != "success" or not output.customer_summary:
-        gaps = "; ".join(output.data_gaps) or "No sufficiently strong customer need was identified."
-        return MLinkAnalysisResponse(
-            runId=f"RUN-AGENT-{uuid4()}",
-            customerId=request.customerId,
-            summary=MLinkSummary(
-                relationshipStatus="healthy", opportunityScore=0, overview=gaps
-            ),
-            signals=[],
-            recommendations=[],
-            guardrail=MLinkGuardrail(sellAllowed=True),
-        )
+    ctx = RuleContext(
+        metrics=context.metrics, holdings=context.holdings, next_best_offers=context.next_best_offers,
+        customer=context.customer, deposits=context.deposits,
+        period=PeriodFacts.from_summary(context.period_summary),
+    )
+    hits = evaluate(ctx)
+    signals = build_signals(ctx)
+    headline = _headline(ctx)
 
-    signals = [
-        MLinkSignal(
-            type=signal.signal_type,
-            title=signal.next_best_action.product_name,
-            severity=_severity(signal.heat_level),
-            confidence=round(signal.priority_score / 100, 2),
-            description=signal.observed_behavior,
+    items = [
+        TalkingItem(
+            title=hit.rule.title,
+            product_name=hit.primary_product.name if hit.primary_product else hit.rule.title,
+            rationale=hit.rule.rationale,
+            evidence="; ".join(f"{item.field}={item.value}" for item in hit.evidence),
+            rec_type=hit.rule.rec_type,
         )
-        for signal in output.signals
+        for hit in hits
     ]
-    mapped_signals = [signal for signal in output.signals if signal.is_mapped]
+    consultation = generate_consultation_content(
+        str(context.customer.get("fullName") or request.customerId), str(context.customer.get("tier") or ctx.metrics.tierLabel),
+        headline, items, period_label=ctx.period.label if ctx.period else "",
+    )
     recommendations = [
-        MLinkRecommendation(
-            priority=index,
-            type=signal.signal_type,
-            title=signal.next_best_action.action,
-            description=signal.next_best_action.rationale,
-            confidence=round(signal.priority_score / 100, 2),
-            product=(
-                MLinkProduct(
-                    id=signal.product_id,
-                    name=signal.next_best_action.product_name,
-                )
-                if signal.product_id
-                else None
-            ),
-            reasons=[signal.observed_behavior, signal.next_best_action.rationale],
-            evidence=[
-                MLinkEvidence(
-                    type=_source_for_product_group(signal.product_group),
-                    title=signal.product_group,
-                    description=signal.observed_behavior,
-                    source=_source_for_product_group(signal.product_group),
-                    sourceReference=signal.source_reference,
-                )
-            ],
-            script=_script_for(signal, output),
-        )
-        for index, signal in enumerate(mapped_signals[:3], start=1)
+        _recommendation(index, hit, ctx, _script_for(hit, consultation)) for index, hit in enumerate(hits, start=1)
     ]
-    score = max((signal.priority_score for signal in mapped_signals), default=0)
-    overview = output.customer_summary.headline
-    if not recommendations:
-        overview = "No sufficiently strong customer need was identified."
+
+    if ctx.metrics.churnLabel == "Cao":
+        status = "at_risk"
+    elif recommendations:
+        status = "opportunity"
+    else:
+        status = "healthy"
+    overview = headline if recommendations else f"{headline} Không có kịch bản tư vấn nào được kích hoạt: duy trì chăm sóc định kỳ."
     return MLinkAnalysisResponse(
-        runId=f"RUN-AGENT-{uuid4()}",
-        customerId=request.customerId,
-        summary=MLinkSummary(
-            relationshipStatus="opportunity" if recommendations else "healthy",
-            opportunityScore=score,
-            overview=overview,
-        ),
-        signals=signals,
-        recommendations=recommendations,
+        runId=run_id, customerId=request.customerId, period=period,
+        summary=MLinkSummary(relationshipStatus=status, opportunityScore=_round1(ctx.metrics.priorityScore), overview=overview),
+        signals=signals, recommendations=recommendations,
         guardrail=MLinkGuardrail(sellAllowed=True),
     )

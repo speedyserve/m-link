@@ -1,0 +1,142 @@
+{
+  "08100137": {
+    "CREDIT_CARD": null,
+    "BANCA": 1,
+    "FX": null,
+    "BOND": null,
+    "LOAN": 2
+  },
+  "08100274": {
+    "CREDIT_CARD": 1,
+    "BANCA": null,
+    "FX": 4,
+    "BOND": 2,
+    "LOAN": 3
+  },
+  "08100411": {
+    "CREDIT_CARD": 3,
+    "BANCA": 2,
+    "FX": 5,
+    "BOND": 1,
+    "LOAN": 4
+  },
+  "08100548": {
+    "CREDIT_CARD": 1,
+    "BANCA": 4,
+    "FX": 2,
+    "BOND": 3,
+    "LOAN": null
+  },
+  "08100685": {
+    "CREDIT_CARD": null,
+    "BANCA": 3,
+    "FX": 2,
+    "BOND": 1,
+    "LOAN": 4
+  },
+  "08100822": {
+    "CREDIT_CARD": null,
+    "BANCA": 2,
+    "FX": 4,
+    "BOND": 3,
+    "LOAN": 1
+  },
+  "08100959": {
+    "CREDIT_CARD": 3,
+    "BANCA": 4,
+    "FX": 2,
+    "BOND": 1,
+    "LOAN": 5
+  },
+  "08101096": {
+    "CREDIT_CARD": 1,
+    "BANCA": 2,
+    "FX": null,
+    "BOND": 3,
+    "LOAN": 4
+  },
+  "08101233": {
+    "CREDIT_CARD": 1,
+    "BANCA": 3,
+    "FX": 2,
+    "BOND": 4,
+    "LOAN": null
+  },
+  "08101370": {
+    "CREDIT_CARD": 1,
+    "BANCA": null,
+    "FX": 3,
+    "BOND": 2,
+    "LOAN": 4
+  },
+  "08101507": {
+    "CREDIT_CARD": null,
+    "BANCA": null,
+    "FX": null,
+    "BOND": null,
+    "LOAN": null
+  },
+  "08101644": {
+    "CREDIT_CARD": 4,
+    "BANCA": 3,
+    "FX": 1,
+    "BOND": 2,
+    "LOAN": 5
+  },
+  "08101781": {
+    "CREDIT_CARD": 1,
+    "BANCA": 4,
+    "FX": 3,
+    "BOND": null,
+    "LOAN": 2
+  },
+  "08101918": {
+    "CREDIT_CARD": null,
+    "BANCA": 3,
+    "FX": 1,
+    "BOND": 2,
+    "LOAN": null
+  },
+  "08102055": {
+    "CREDIT_CARD": null,
+    "BANCA": 4,
+    "FX": 3,
+    "BOND": 1,
+    "LOAN": 2
+  },
+  "08102192": {
+    "CREDIT_CARD": 5,
+    "BANCA": 4,
+    "FX": 3,
+    "BOND": 2,
+    "LOAN": 1
+  },
+  "08102329": {
+    "CREDIT_CARD": null,
+    "BANCA": 1,
+    "FX": 3,
+    "BOND": 2,
+    "LOAN": null
+  },
+  "08102466": {
+    "CREDIT_CARD": 1,
+    "BANCA": 4,
+    "FX": 3,
+    "BOND": 2,
+    "LOAN": 5
+  },
+  "08102603": {
+    "CREDIT_CARD": 1,
+    "BANCA": null,
+    "FX": 4,
+    "BOND": 2,
+    "LOAN": 3
+  },
+  "08102740": {
+    "CREDIT_CARD": 3,
+    "BANCA": 2,
+    "FX": 1,
+    "BOND": null,
+    "LOAN": null
+  }
+}

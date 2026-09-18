@@ -16,6 +16,8 @@ import { RecommendationsService } from './modules/recommendations/recommendation
 import { InternalController } from './modules/internal/internal.controller';
 import { InternalAgentGuard } from './modules/internal/internal.guard';
 import { HealthController } from './modules/health/health.controller';
+import { MetricsController } from './modules/metrics/metrics.controller';
+import { MetricsService } from './modules/metrics/metrics.service';
 import { AGENT_CLIENT } from './modules/agent/agent.types';
 import { MockAgentClient } from './modules/agent/mock-agent.client';
 import { GreenNodeAgentClient } from './modules/agent/greennode-agent.client';
@@ -30,10 +32,10 @@ import { GreenNodeAgentClient } from './modules/agent/greennode-agent.client';
   ],
   controllers: [
     RmsController, CustomersController, DashboardController, AnalysisController,
-    RecommendationsController, InternalController, HealthController,
+    RecommendationsController, InternalController, HealthController, MetricsController,
   ],
   providers: [
-    RmsService, CustomersService, DashboardService, AnalysisService, RecommendationsService,
+    RmsService, CustomersService, DashboardService, AnalysisService, RecommendationsService, MetricsService,
     InternalAgentGuard, MockAgentClient, GreenNodeAgentClient,
     {
       provide: AGENT_CLIENT,

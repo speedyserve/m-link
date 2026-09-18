@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { customerAnalysisSchema, localeSchema, type Locale } from '@mlink/contracts';
+import { customerAnalysisSchema, localeSchema, type AnalysisPeriod, type Locale } from '@mlink/contracts';
 import { randomUUID } from 'node:crypto';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { DomainException } from '../../common/http';
@@ -8,6 +8,30 @@ import { AgentRun, Recommendation, RecommendationEvidence } from '../../database
 import { AGENT_CLIENT, type AgentClient } from '../agent/agent.types';
 import { AgentProviderError } from '../agent/greennode-agent.client';
 import { CustomersService } from '../customers/customers.service';
+import { MetricsService } from '../metrics/metrics.service';
+import { daysBetween, resolveRange } from '../metrics/period.formulas';
+
+/**
+ * jsonb columns are typed `Record<string, unknown>`, which TypeORM's `update()` mapper cannot
+ * express; the payloads written here are already validated by their Zod schema.
+ */
+const asJsonb = <T extends object>(value: T) => value as unknown as Record<string, never>;
+
+/** True when the Agent echoed back exactly the window it was asked to analyse. */
+function periodMatches(
+  requested: { periodFrom?: string; periodTo?: string },
+  echoed: { from: string; to: string } | null | undefined,
+): boolean {
+  if (!requested.periodFrom || !requested.periodTo) return true;
+  return echoed?.from === requested.periodFrom && echoed?.to === requested.periodTo;
+}
+
+/** Body of `POST /api/customers/:id/analyze` after controller validation. */
+export interface AnalyzeRequestBody {
+  locale?: unknown;
+  periodFrom?: string;
+  periodTo?: string;
+}
 
 @Injectable()
 export class AnalysisService {
@@ -16,21 +40,30 @@ export class AnalysisService {
     @InjectRepository(AgentRun) private readonly runs: Repository<AgentRun>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly customers: CustomersService,
+    private readonly metrics: MetricsService,
   ) {}
 
   private provider() {
     return (process.env.AGENT_PROVIDER ?? 'mock').toLowerCase();
   }
 
-  async analyze(customerId: string, rmId: string, localeValue: unknown) {
+  async analyze(customerId: string, rmId: string, body: AnalyzeRequestBody) {
     await this.customers.assertCustomer(customerId, rmId);
-    const locale: Locale = localeSchema.catch('vi').parse(localeValue);
+    const locale: Locale = localeSchema.catch('vi').parse(body.locale);
+    // Resolve the requested window against the customer's journal, so both the stored run and
+    // the Agent request always carry a concrete, clamped period even if the client sent none.
+    const dataRange = await this.metrics.dataRange(customerId);
+    const period = resolveRange(dataRange, { from: body.periodFrom, to: body.periodTo });
     const id = `ARUN-${randomUUID()}`;
-    const input = { customerId, objective: 'prepare_rm_brief', requestedBy: rmId, locale };
+    const input = {
+      customerId, objective: 'prepare_rm_brief', requestedBy: rmId, locale,
+      periodFrom: period.from, periodTo: period.to,
+    };
     const run = this.runs.create({
       id, customerId, rmId, provider: this.provider(), externalRunId: null,
       objective: input.objective, status: 'PENDING', startedAt: null, completedAt: null,
-      latencyMs: null, requestPayload: input, responsePayload: null, errorCode: null, errorMessage: null,
+      latencyMs: null, requestPayload: { ...input, windowDays: period.days },
+      responsePayload: null, errorCode: null, errorMessage: null,
     });
     try {
       await this.runs.save(run);
@@ -45,10 +78,17 @@ export class AnalysisService {
     await this.runs.update(id, { status: 'RUNNING', startedAt: new Date(started) });
     try {
       const response = customerAnalysisSchema.parse(await this.agent.analyzeCustomer(input));
+      if (!periodMatches(input, response.period)) {
+        // A stale Agent build drops periodFrom/periodTo and answers with its default snapshot.
+        console.warn(
+          `agent_ignored_period customerId=${customerId} requested=${input.periodFrom}..${input.periodTo} ` +
+          `echoed=${response.period ? `${response.period.from}..${response.period.to}` : 'none'}`,
+        );
+      }
       const completedAt = new Date();
       await this.dataSource.transaction(async (manager) => {
         await manager.update(AgentRun, id, {
-          status: 'COMPLETED', externalRunId: response.runId, responsePayload: response,
+          status: 'COMPLETED', externalRunId: response.runId, responsePayload: asJsonb(response),
           completedAt, latencyMs: completedAt.getTime() - started,
         });
         for (const item of response.recommendations) {
@@ -106,9 +146,32 @@ export class AnalysisService {
     };
   }
 
+  /** The analysed window, read back from the stored request payload (null for runs created before periods existed). */
+  private periodOf(run: AgentRun): AnalysisPeriod | null {
+    const payload = run.requestPayload as { periodFrom?: string; periodTo?: string; windowDays?: number } | null;
+    if (!payload?.periodFrom || !payload?.periodTo) return null;
+    return {
+      from: payload.periodFrom, to: payload.periodTo,
+      windowDays: payload.windowDays ?? daysBetween(payload.periodFrom, payload.periodTo) + 1,
+    };
+  }
+
+  /**
+   * Whether the Agent honoured the requested window: `null` when no window was requested or the
+   * run has no response yet, `false` when the Agent answered without echoing the period (which a
+   * build older than the period-aware contract does).
+   */
+  private periodAppliedOf(run: AgentRun): boolean | null {
+    const requested = run.requestPayload as { periodFrom?: string; periodTo?: string } | null;
+    if (!requested?.periodFrom || !requested?.periodTo || !run.responsePayload) return null;
+    const echoed = (run.responsePayload as { period?: { from: string; to: string } | null }).period;
+    return periodMatches(requested, echoed);
+  }
+
   private summary(run: AgentRun) {
     return {
-      id: run.id, customerId: run.customerId, provider: run.provider,
+      id: run.id, customerId: run.customerId, provider: run.provider, period: this.periodOf(run),
+      periodApplied: this.periodAppliedOf(run),
       externalRunId: run.externalRunId, status: run.status, objective: run.objective,
       startedAt: run.startedAt, completedAt: run.completedAt, latencyMs: run.latencyMs,
       error: run.errorCode ? { code: run.errorCode, message: run.errorMessage } : null,

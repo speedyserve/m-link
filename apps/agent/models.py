@@ -1,156 +1,77 @@
-from pydantic import BaseModel, Field
+"""Pydantic models: the M-Link Application contract (request/response) and the Part B
+metrics payload the Agent receives from the Application's internal API."""
 
+from __future__ import annotations
 
-class CASAInput(BaseModel):
-    average_balance_vnd: int = 0
-    average_balance_range_vnd: list[int] = []
-    recent_inflow: dict | None = None
-
-
-class FixedDepositInput(BaseModel):
-    account_ref: str
-    principal_vnd: int
-    term_months: int
-    maturity_date: str
-    days_to_maturity: int
-    auto_rollover: bool = False
-
-
-class BondInput(BaseModel):
-    issuer_type: str
-    holding_value_vnd: int
-    next_coupon_date: str
-    days_to_coupon: int
-
-
-class SpendingCategory(BaseModel):
-    category: str
-    share: float
-
-
-class PaymentHistory(BaseModel):
-    full_payment_rate: float
-    late_payment_count_12m: int
-
-
-class CreditCardInput(BaseModel):
-    credit_limit_vnd: int
-    average_monthly_spend_vnd: int
-    utilization_rate: float
-    top_spending_categories: list[SpendingCategory] = []
-    payment_history: PaymentHistory | None = None
-
-
-class VASInput(BaseModel):
-    utility_payment_method: str = ""
-    auto_debit_enabled: bool = False
-    late_payment_incidents_12m: int = 0
-    mobile_topup_frequency: str = ""
-
-
-class ProductsInput(BaseModel):
-    casa: CASAInput | None = None
-    fixed_deposit: list[FixedDepositInput] = []
-    bond: list[BondInput] = []
-    credit_card: CreditCardInput | None = None
-    vas: VASInput | None = None
-
-
-class CustomerDataInput(BaseModel):
-    cif: str
-    customer_name: str
-    segment: str = ""
-    as_of_date: str = ""
-    # Optional so the engine can return a structured `insufficient_data`
-    # response instead of rejecting the whole request during validation.
-    products: ProductsInput | None = None
-
-
-class AnalysisRequest(BaseModel):
-    customer_data: CustomerDataInput
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MLinkAnalyzeRequest(BaseModel):
-    """Stable request sent by the M-Link Application backend."""
+    """Stable request sent by the M-Link Application backend.
+
+    `periodFrom`/`periodTo` carry the window the RM filtered in the UI. They are named this way
+    (not `from`/`to`) because `from` is a Python keyword. When absent, the Agent analyses the
+    Application's default 90-day snapshot.
+    """
 
     customerId: str
     objective: str = "prepare_rm_brief"
     requestedBy: str
     locale: str = "vi"
+    periodFrom: str | None = None
+    periodTo: str | None = None
 
 
-class ScoreBreakdown(BaseModel):
-    signal_weight: float
-    time_urgency: float
-    opportunity_value: float
+class CustomerMetrics(BaseModel):
+    """Mirror of `customerMetricsSchema` in packages/contracts (computed by the Application)."""
 
+    customerId: str
+    asOfDate: str
+    recencyDays: int
+    freq90: int
+    freqPrev90: int
+    casaAvg90: str
+    casaAvgPrev90: str
+    casaTrend: float
+    casaCv: float
+    ccAvgBalance90: str
+    creditLimit: str
+    cur: float
+    loanTotal: str
+    fdCurrent: str
+    fdAvgPrev90: str
+    fdLiquidated: bool
+    bondCurrent: str
+    fundCertCurrent: str
+    tav: str
+    leverage: float
+    phs: float
+    holdingCount: int
+    fxVolume12m: str
+    rasRaw: float
+    ras: float
+    valueScore: float
+    churnScore: float
+    churnLabel: str
+    crossSellScore: float
+    priorityScore: float
+    behaviourLabel: str
+    riskAppetiteLabel: str
+    tierLabel: str
+    phsLabel: str
+    suggestionCode: str
+    isNewCif: bool = False
+    computedAt: str = ""
+    # Length of the aggregation window the Application used (90 by default, or the filtered period).
+    windowDays: int = 90
+    prevWindowDays: int = 90
 
-class NextBestAction(BaseModel):
-    product_name: str
-    action: str
-    rationale: str
-    deadline_hint: str
-
-
-class Signal(BaseModel):
-    product_group: str
-    observed_behavior: str
-    classification: str
-    priority_score: int
-    score_breakdown: ScoreBreakdown
-    heat_level: str
-    keywords: list[str]
-    is_mapped: bool
-    signal_type: str = "unknown"
-    product_id: str | None = None
-    source_reference: str | None = None
-    next_best_action: NextBestAction
-
-
-class TimelineEvent(BaseModel):
-    date: str
-    event: str
-    impact: str
-    amount_vnd: int | None = None
-
-
-class MainPoint(BaseModel):
-    order: int
-    title: str
-    talking_point: str
-    expected_objection: str
-    objection_response: str
-
-
-class ConsultationScript(BaseModel):
-    opening: str
-    main_points: list[MainPoint]
-    closing: str
-
-
-class CustomerMessage(BaseModel):
-    sms: str
-    zalo: str
-
-
-class CustomerSummary(BaseModel):
-    name: str
-    segment: str
-    total_relationship_value_vnd: int
-    engagement_level: str
-    headline: str
-
-
-class AnalysisOutput(BaseModel):
-    status: str
-    cif: str
-    customer_summary: CustomerSummary | None = None
-    signals: list[Signal] = []
-    timeline_trend: list[TimelineEvent] = []
-    consultation_script: ConsultationScript | None = None
-    customer_message: CustomerMessage | None = None
-    compliance_note: str = ""
-    data_gaps: list[str] = []
+    def amount(self, field: str) -> float:
+        """Decimal strings (numeric(20,2)) as floats for arithmetic and formatting."""
+        try:
+            return float(getattr(self, field))
+        except (TypeError, ValueError):
+            return 0.0
 
 
 class MLinkSummary(BaseModel):
@@ -192,6 +113,16 @@ class MLinkRecommendation(BaseModel):
     script: str = ""
 
 
+class MLinkPeriod(BaseModel):
+    """The analysed window, echoed back to the Application. Serialise with `by_alias=True`."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_date: str = Field(alias="from")
+    to: str
+    windowDays: int
+
+
 class MLinkGuardrail(BaseModel):
     sellAllowed: bool
     reason: str | None = None
@@ -204,3 +135,4 @@ class MLinkAnalysisResponse(BaseModel):
     signals: list[MLinkSignal] = []
     recommendations: list[MLinkRecommendation] = []
     guardrail: MLinkGuardrail
+    period: MLinkPeriod | None = None
