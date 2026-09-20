@@ -1,8 +1,10 @@
 'use client';
 
+import { CalendarRange } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo } from 'react';
 import type { useApp } from '@/components/providers';
+import { Badge } from './ui';   // relative on purpose: period.test.ts imports this file and vitest has no "@/" alias
 
 type T = ReturnType<typeof useApp>['t'];
 export type DataRange = { first: string; last: string };
@@ -58,16 +60,18 @@ export function formatDay(isoDate: string, locale: 'vi' | 'en') {
 export function PeriodFilter({ period, dataRange, onChange, locale, t }: { period: Period; dataRange: DataRange; onChange: (next: { from: string; to: string }) => void; locale: 'vi' | 'en'; t: T }) {
   const preset = activePreset(period, dataRange);
   const pick = (days: number) => onChange({ from: addDays(dataRange.last, -(days - 1)) < dataRange.first ? dataRange.first : addDays(dataRange.last, -(days - 1)), to: dataRange.last });
-  return <div className="card flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="label mr-1">{t('period')}</span>
-      {PRESET_DAYS.map((days) => <button key={days} type="button" onClick={() => pick(days)} className={`rounded-lg px-3 py-1.5 text-sm font-bold ${preset === days ? 'bg-navy-900 text-white' : 'bg-navy-100 text-navy-500 hover:bg-orange-50'}`}>{days} {t('daysUnit')}</button>)}
-      <span className={`rounded-lg px-3 py-1.5 text-sm font-bold ${preset === null ? 'bg-navy-900 text-white' : 'bg-navy-100 text-navy-500'}`}>{t('customRange')}</span>
+  return <div className="card flex flex-col gap-4 p-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="flex flex-wrap items-center gap-3">
+      <span className="label flex items-center gap-1.5"><CalendarRange size={15}/>{t('period')}</span>
+      <div className="segmented" role="group" aria-label={t('period')}>
+        {PRESET_DAYS.map((days) => <button key={days} type="button" aria-pressed={preset === days} onClick={() => pick(days)}>{days} {t('daysUnit')}</button>)}
+      </div>
+      {preset === null && <Badge tone="warn">{t('customRange')}</Badge>}
     </div>
-    <div className="flex flex-wrap items-center gap-2 text-sm">
-      <label className="flex items-center gap-1.5"><span className="text-navy-500">{t('from')}</span><input type="date" className="field !py-1.5" value={period.from} min={dataRange.first} max={period.to} onChange={(event) => event.target.value && onChange({ from: event.target.value, to: period.to })}/></label>
-      <label className="flex items-center gap-1.5"><span className="text-navy-500">{t('to')}</span><input type="date" className="field !py-1.5" value={period.to} min={period.from} max={dataRange.last} onChange={(event) => event.target.value && onChange({ from: period.from, to: event.target.value })}/></label>
-      <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-navy-800">{formatDay(period.from, locale)} → {formatDay(period.to, locale)} · {period.days} {t('daysUnit')}</span>
+    <div className="flex flex-wrap items-center gap-3 text-sm">
+      <label className="flex items-center gap-2"><span className="text-navy-500">{t('from')}</span><input type="date" className="field !w-auto !py-1.5" value={period.from} min={dataRange.first} max={period.to} onChange={(event) => event.target.value && onChange({ from: event.target.value, to: period.to })}/></label>
+      <label className="flex items-center gap-2"><span className="text-navy-500">{t('to')}</span><input type="date" className="field !w-auto !py-1.5" value={period.to} min={period.from} max={dataRange.last} onChange={(event) => event.target.value && onChange({ from: period.from, to: event.target.value })}/></label>
+      <span className="rounded-full bg-navy-50 px-3 py-1.5 text-xs font-bold text-navy-800">{formatDay(period.from, locale)} → {formatDay(period.to, locale)} · {period.days} {t('daysUnit')}</span>
     </div>
   </div>;
 }
