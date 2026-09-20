@@ -61,23 +61,28 @@ export function MetricsPanel({ metrics, locale, t }: { metrics: CustomerMetrics 
     [t('crossSellScore'), metrics.crossSellScore, 'neutral'],
     [t('priorityScore'), metrics.priorityScore, 'good'],
   ];
-  return <div className="card p-5">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h2 className="font-extrabold">{t('metrics')}</h2><p className="text-xs text-navy-500">{t('asOf')} {metrics.asOfDate}</p></div>
+  const tile = { danger: 'border-red-200 bg-red-50', warn: 'border-orange-300 bg-orange-50', good: 'border-navy-100 bg-white', neutral: 'border-navy-100 bg-white' };
+  return <div className="card">
+    <div className="card-head">
+      <div><h2 className="text-base font-extrabold">{t('metrics')}</h2><p className="text-xs text-navy-500">{t('asOf')} {metrics.asOfDate} · {windowDays} {t('daysUnit')}</p></div>
       <div className="flex flex-wrap gap-2"><Badge tone={churnTone(metrics.churnLabel)}>{churnText(metrics.churnLabel, t)}</Badge><Badge>{t('behaviour')}: {metrics.behaviourLabel}</Badge></div>
     </div>
-    <div className="mt-5 grid gap-3 sm:grid-cols-4">{scores.map(([label, value, tone]) => <div key={label} className={`rounded-xl p-4 ${tone === 'danger' ? 'bg-red-50' : tone === 'warn' ? 'bg-orange-50' : tone === 'good' ? 'bg-orange-50' : 'bg-navy-50'}`}><div className="label">{label}</div><div className="mt-1 text-2xl font-black">{score(value)}</div></div>)}</div>
-    <dl className="mt-5 divide-y divide-navy-100 text-sm">{rows.map(([label, value, hint]) => <div key={label} className="flex items-start justify-between gap-4 py-2.5"><dt className="text-navy-500">{label}</dt><dd className="text-right"><div className="font-bold">{value}</div>{hint && <div className="text-xs text-navy-500">{hint}</div>}</dd></div>)}</dl>
-    <div className="mt-4 rounded-xl border border-navy-100 bg-orange-50 p-4 text-sm"><div className="label">{t('suggestion')}</div><p className="mt-1 font-semibold text-navy-900">{SUGGESTION_TEXT[metrics.suggestionCode][locale]}</p></div>
+    <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">{scores.map(([label, value, tone]) => <div key={label} className={`rounded-xl border p-4 ${tile[tone]}`}>
+      <div className="label">{label}</div>
+      <div className="mt-1 text-2xl font-black">{score(value)}</div>
+      <div className="mt-2 h-1 rounded-full bg-navy-100"><div className="h-full rounded-full bg-orange-500" style={{ width: `${Math.min(100, Math.max(0, value))}%` }}/></div>
+    </div>)}</div>
+    <dl className="divide-y divide-navy-100 border-t border-navy-100 px-5 text-sm">{rows.map(([label, value, hint]) => <div key={label} className="flex items-start justify-between gap-4 py-2.5"><dt className="text-navy-500">{label}</dt><dd className="text-right"><div className="font-bold">{value}</div>{hint && <div className="text-xs text-navy-500">{hint}</div>}</dd></div>)}</dl>
+    <div className="m-5 rounded-xl border-l-4 border-orange-500 bg-orange-50 p-4 text-sm"><div className="label">{t('suggestion')}</div><p className="mt-1 font-semibold text-navy-900">{SUGGESTION_TEXT[metrics.suggestionCode][locale]}</p></div>
   </div>;
 }
 
 export function HoldingMatrix({ holdings, offers, locale, t }: { holdings: ProductHolding[]; offers: NextBestOffer[]; locale: Locale; t: T }) {
   const held = new Map(holdings.map((row) => [row.productCode, row.held]));
   const ranked = offers.filter((row) => row.rank !== null).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
-  return <div className="card p-5">
-    <h2 className="font-extrabold">{t('productsHeld')}</h2>
-    <div className="mt-4 flex flex-wrap gap-2">{PRODUCT_CODES.map((code) => <span key={code} className={`rounded-full px-3 py-1 text-xs font-bold ${held.get(code) ? 'bg-navy-800 text-white' : 'bg-navy-100 text-navy-500 line-through'}`}>{PRODUCT_LABELS[code]?.[locale] ?? code}</span>)}</div>
-    {!!ranked.length && <div className="mt-5"><h3 className="text-sm font-extrabold">{t('nextBestOffer')}</h3><ol className="mt-2 space-y-1 text-sm">{ranked.map((row) => <li key={row.productCode} className="flex justify-between"><span>{PRODUCT_LABELS[row.productCode]?.[locale] ?? row.productCode}</span><Badge tone={row.rank === 1 ? 'good' : 'neutral'}>{t('rank')} {row.rank}</Badge></li>)}</ol></div>}
+  return <div className="card">
+    <div className="card-head"><h2 className="text-base font-extrabold">{t('productsHeld')}</h2><span className="text-xs font-bold text-navy-500">{PRODUCT_CODES.filter((code) => held.get(code)).length}/{PRODUCT_CODES.length}</span></div>
+    <div className="flex flex-wrap gap-2 p-5">{PRODUCT_CODES.map((code) => <span key={code} className={`rounded-full px-3 py-1 text-xs font-bold ${held.get(code) ? 'bg-navy-800 text-white' : 'bg-navy-50 text-navy-500 line-through'}`}>{PRODUCT_LABELS[code]?.[locale] ?? code}</span>)}</div>
+    {!!ranked.length && <div className="border-t border-navy-100 p-5"><h3 className="text-sm font-extrabold">{t('nextBestOffer')}</h3><ol className="mt-3 space-y-2 text-sm">{ranked.map((row) => <li key={row.productCode} className="flex items-center justify-between"><span>{PRODUCT_LABELS[row.productCode]?.[locale] ?? row.productCode}</span><Badge tone={row.rank === 1 ? 'good' : 'neutral'}>{t('rank')} {row.rank}</Badge></li>)}</ol></div>}
   </div>;
 }

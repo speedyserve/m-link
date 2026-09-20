@@ -34,8 +34,9 @@
   --radius: 12px;        /* MSB card/button radius */
   --radius-sm: 8px;
   --radius-pill: 32px;
-  --shadow-card: 0 8px 24px rgba(9, 30, 66, .05);
+  --shadow-card: 0 1px 2px rgba(9, 30, 66, .04), 0 8px 24px rgba(9, 30, 66, .05);
   --shadow-orange: 0 6px 18px rgba(255, 106, 0, .28);
+  --sidebar-width: 16rem;
 }
 
 * { box-sizing: border-box; }
@@ -43,25 +44,55 @@
 body {
   margin: 0;
   color: var(--ink);
-  background: radial-gradient(circle at 92% -10%, rgba(9, 30, 66, .07), transparent 30rem), var(--canvas);
+  background: var(--canvas);
   font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 a { color: inherit; text-decoration: none; }
 button, input, select { font: inherit; }
+:focus-visible { outline: 2px solid var(--orange-500); outline-offset: 2px; }
 
+/*
+ * Component classes live in Tailwind's components layer so that utility classes written in the
+ * markup (bg-red-50, border-orange-300, !py-2, …) always win over them.
+ */
+@layer components {
+/* ---- Application frame: navy sidebar, light top bar --------------------------------------- */
+.sidebar { background: var(--navy-900); color: rgba(255, 255, 255, .72); }
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .65rem .9rem;
+  border-radius: var(--radius-sm);
+  font-size: .875rem;
+  font-weight: 600;
+  transition: background .15s, color .15s;
+}
+.nav-link:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.nav-link[aria-current='page'] { background: rgba(255, 255, 255, .12); color: #fff; box-shadow: inset 3px 0 0 var(--orange-500); }
+.topbar { background: rgba(255, 255, 255, .92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--navy-100); }
+/* Below the lg breakpoint the sidebar is an off-canvas drawer opened from the top bar. */
+@media (max-width: 1023px) {
+  .sidebar { transform: translateX(-100%); transition: transform .2s ease; }
+  .sidebar[data-open='true'] { transform: none; box-shadow: 0 0 40px rgba(9, 30, 66, .35); }
+}
+
+/* ---- Surfaces ------------------------------------------------------------------------------- */
 .card {
   background: white;
   border: 1px solid var(--navy-100);
   border-radius: var(--radius);
   box-shadow: var(--shadow-card);
 }
+.card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--navy-100); }
 
 .label {
   color: var(--muted);
-  font-size: .76rem;
+  font-size: .72rem;
   font-weight: 700;
-  letter-spacing: .055em;
+  letter-spacing: .06em;
   text-transform: uppercase;
 }
 
@@ -73,38 +104,70 @@ button, input, select { font: inherit; }
   gap: .5rem;
   border: 0;
   border-radius: var(--radius);
-  padding: .7rem 1rem;
+  padding: .65rem 1rem;
   background: var(--orange-500);
   color: var(--navy-900);
   font-weight: 700;
+  font-size: .875rem;
   cursor: pointer;
   transition: .2s;
 }
 .button:hover { background: var(--orange-bright); box-shadow: var(--shadow-orange); transform: translateY(-1px); }
 .button:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
-.button.secondary { background: var(--navy-50); color: var(--navy-800); }
-.button.secondary:hover { background: var(--navy-100); box-shadow: none; }
+.button.secondary { background: white; color: var(--navy-800); border: 1px solid var(--navy-200); }
+.button.secondary:hover { background: var(--navy-50); box-shadow: none; transform: none; }
 .button.pill { border-radius: var(--radius-pill); }
 
 .field {
   width: 100%;
   border: 1px solid var(--navy-200);
   border-radius: var(--radius-sm);
-  padding: .7rem .8rem;
+  padding: .6rem .8rem;
   background: white;
+  font-size: .875rem;
   outline: none;
 }
 .field:focus { border-color: var(--orange-500); box-shadow: 0 0 0 3px rgba(255, 106, 0, .18); }
 
+/* ---- Data tables ---------------------------------------------------------------------------- */
 .table-wrap { overflow: auto; }
 table { width: 100%; border-collapse: collapse; }
-th { color: var(--muted); font-size: .75rem; text-align: left; text-transform: uppercase; letter-spacing: .04em; }
-th, td { padding: .8rem .65rem; border-bottom: 1px solid var(--navy-100); white-space: nowrap; }
+th { background: var(--navy-50); color: var(--muted); font-size: .72rem; font-weight: 700; text-align: left; text-transform: uppercase; letter-spacing: .05em; }
+th, td { padding: .75rem .75rem; border-bottom: 1px solid var(--navy-100); white-space: nowrap; }
+th:first-child, td:first-child { padding-left: 1.25rem; }
+th:last-child, td:last-child { padding-right: 1.25rem; }
+.data-table tbody tr { transition: background .12s; }
+.data-table tbody tr:hover { background: var(--navy-50); }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.row-link { cursor: pointer; }
+
+/* ---- Tabs and segmented controls ------------------------------------------------------------ */
+.tabs { display: flex; gap: .25rem; overflow-x: auto; border-bottom: 1px solid var(--navy-100); }
+.tab {
+  margin-bottom: -1px;
+  padding: .75rem 1rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: .875rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tab:hover { color: var(--navy-900); }
+.tab[aria-selected='true'] { color: var(--navy-900); border-bottom-color: var(--orange-500); }
+
+.segmented { display: inline-flex; gap: .125rem; padding: .25rem; border-radius: var(--radius-sm); background: var(--navy-50); }
+.segmented button { border: 0; border-radius: 6px; padding: .375rem .75rem; background: transparent; color: var(--muted); font-size: .8125rem; font-weight: 700; cursor: pointer; }
+.segmented button:hover { color: var(--navy-900); }
+.segmented button[aria-pressed='true'] { background: white; color: var(--navy-900); box-shadow: 0 1px 2px rgba(9, 30, 66, .12); }
 
 .skeleton {
   background: linear-gradient(90deg, var(--navy-50), white, var(--navy-50));
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
   border-radius: var(--radius);
+}
 }
 @keyframes shimmer { to { background-position: -200% 0; } }

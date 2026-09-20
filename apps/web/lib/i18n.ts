@@ -18,6 +18,7 @@ export const messages = {
     period: 'Kỳ xem', daysUnit: 'ngày', customRange: 'Tùy chọn', from: 'Từ', to: 'Đến', periodSummary: 'Tổng quan kỳ', openingBalance: 'Đầu kỳ', closingBalance: 'Cuối kỳ', averageBalance: 'Bình quân', change: 'Thay đổi',
     balancesInPeriod: 'Số dư sản phẩm trong kỳ', flowsInPeriod: 'Phát sinh trong kỳ', activeDays: 'Ngày có giao dịch', txnCount: 'Số giao dịch', lastActive: 'Giao dịch gần nhất', product: 'Sản phẩm', category: 'Danh mục', total: 'Tổng', daysWithActivity: 'Số ngày', buy: 'Mua', sell: 'Bán',
     balanceTrend: 'Diễn biến số dư trong kỳ', computedAt: 'Chỉ số tính tại ngày', insufficientHistory: 'Chưa đủ 180 ngày dữ liệu trước ngày này: cửa sổ 90 ngày liền trước bị thiếu', storedSnapshot: 'Snapshot đã lưu',
+    recommendedAction: 'Hành động đề xuất', customerSince: 'Khách hàng từ', clearFilters: 'Xóa bộ lọc',
     allTypes: 'Mọi loại', allCategories: 'Mọi danh mục', page: 'Trang', of: '/', filterTransactions: 'Lọc giao dịch', results: 'kết quả', totalDebit: 'Tổng chi', totalCredit: 'Tổng thu', prev: 'Trước', next: 'Sau', cardSpendInPeriod: 'Chi tiêu trong kỳ', avgBalanceInPeriod: 'Dư nợ bình quân kỳ',
   },
   en: {
@@ -39,6 +40,7 @@ export const messages = {
     period: 'Period', daysUnit: 'days', customRange: 'Custom', from: 'From', to: 'To', periodSummary: 'Period summary', openingBalance: 'Opening', closingBalance: 'Closing', averageBalance: 'Average', change: 'Change',
     balancesInPeriod: 'Product balances in period', flowsInPeriod: 'Flows in period', activeDays: 'Active days', txnCount: 'Transactions', lastActive: 'Last activity', product: 'Product', category: 'Category', total: 'Total', daysWithActivity: 'Days', buy: 'Buy', sell: 'Sell',
     balanceTrend: 'Balance trend in period', computedAt: 'Metrics as of', insufficientHistory: 'Fewer than 180 journal days before this date: the previous 90-day window is incomplete', storedSnapshot: 'Stored snapshot',
+    recommendedAction: 'Recommended action', customerSince: 'Customer since', clearFilters: 'Clear filters',
     allTypes: 'All types', allCategories: 'All categories', page: 'Page', of: '/', filterTransactions: 'Filter transactions', results: 'results', totalDebit: 'Total debit', totalCredit: 'Total credit', prev: 'Prev', next: 'Next', cardSpendInPeriod: 'Spend in period', avgBalanceInPeriod: 'Average balance in period',
   },
 } as const;
