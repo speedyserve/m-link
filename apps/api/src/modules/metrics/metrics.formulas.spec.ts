@@ -54,10 +54,10 @@ describe('MSB metric formulas against the Excel golden sheet', () => {
     computed = new Map(computePortfolioMetrics(buildInputs()).map((row) => [row.customerId, row]));
   });
 
-  it('loads 20 customers and 7,300 daily positions', () => {
-    expect(msbDataset.customers).toHaveLength(20);
-    expect(msbDataset.manifest.dailyPositions).toBe(7300);
-    expect(computed.size).toBe(20);
+  it('loads 40 customers and 14,600 daily positions', () => {
+    expect(msbDataset.customers).toHaveLength(40);
+    expect(msbDataset.manifest.dailyPositions).toBe(14_600);
+    expect(computed.size).toBe(40);
   });
 
   it.each(msbDataset.metricsGolden.map((row) => [row.cif, row] as const))(
@@ -92,19 +92,23 @@ describe('MSB metric formulas against the Excel golden sheet', () => {
   );
 
   it('reproduces the headline scenarios of the demo', () => {
-    expect(computed.get('08102466')!.churnLabel).toBe('Cao');
-    expect(computed.get('08102466')!.recencyDays).toBe(229);
+    // Silent for 94 days with an empty CASA and a closed term deposit: the highest churn of the sample.
+    expect(computed.get('08100274')!.churnLabel).toBe('Cao');
+    expect(computed.get('08100274')!.recencyDays).toBe(94);
+    // Dormant since 2026-02-10, but the 90-day Churn Score is only medium (it peaks in earlier windows, see the as-of spec).
+    expect(computed.get('08102466')!.recencyDays).toBe(220);
+    expect(computed.get('08102466')!.churnLabel).toBe('Trung bình');
     expect(computed.get('08102740')!.valueScore).toBeCloseTo(100, 9);
     expect(computed.get('08100548')!.suggestionCode).toBe('LEVERAGE_HIGH');
-    expect(computed.get('08101096')!.suggestionCode).toBe('CASA_SURGE_NO_BOND');
+    expect(computed.get('08100411')!.suggestionCode).toBe('CASA_SURGE_NO_BOND');
     expect(computed.get('08101096')!.ras).toBe(1);
     expect(computed.get('08101096')!.riskAppetiteLabel).toBe('Rủi ro cao');
     const ranked = [...computed.values()].sort((a, b) => b.priorityScore - a.priorityScore);
-    expect(ranked.slice(0, 3).map((row) => row.customerId)).toEqual(['08102740', '08102466', '08100137']);
+    expect(ranked.slice(0, 3).map((row) => row.customerId)).toEqual(['08102740', '08100274', '08104110']);
   });
 
-  it('flags no customer as a new CIF in the sample (youngest CIF is 365 days old)', () => {
-    expect([...computed.values()].some((row) => row.isNewCif)).toBe(false);
+  it('flags exactly one new CIF in the sample (08103288, opened 2026-08-05, 44 days before the as-of date)', () => {
+    expect([...computed.values()].filter((row) => row.isNewCif).map((row) => row.customerId)).toEqual(['08103288']);
   });
 });
 

@@ -1,6 +1,6 @@
 # M-Link
 
-M-Link is a local-first MVP for relationship managers. It presents a Customer 360 workspace, reads a synthetic MSB retail portfolio (20 customers x 365 daily positions) from the M-Link API, computes the MSB customer-evaluation metrics, and stores a traceable analysis history for each customer.
+M-Link is a local-first MVP for relationship managers. It presents a Customer 360 workspace, reads a synthetic MSB retail portfolio (40 customers x 365 daily positions) from the M-Link API, computes the MSB customer-evaluation metrics, and stores a traceable analysis history for each customer.
 
 The repository is a pnpm monorepo. It is ready for local development, an API Docker deployment (including Railway-style environment variables), and a Vercel-style Next.js web deployment.
 
@@ -74,13 +74,13 @@ The seed always truncates and reloads the dataset; `db:reset` and `demo:reset` a
 
 ### The MSB sample dataset
 
-`apps/api/src/database/msb-dataset/` holds the committed export of `Data_mau_365ngay_20KH.xlsx`: 20 customers, the 13-line product-holding matrix, Next Best Offer ranks, credit limits, the 7,300-row daily journal and the golden metric values of sheet *Chỉ số đánh giá KH*. The as-of date is 2026-09-18 (last journal day). Regenerate it from a new workbook with the standard-library script:
+`apps/api/src/database/msb-dataset/` holds the committed export of `Data_mau_365ngay_40KH.xlsx`: 40 customers, the 13-line product-holding matrix, Next Best Offer ranks, credit limits, the 14,600-row daily journal and the golden metric values of sheet *Chỉ số đánh giá KH*. The last 20 customers (CIF `08102877` onwards) each follow a scenario written to change over time (recovery, sudden decline, seasonal business, new CIF, bond maturity, …); the scenario of every customer is in the column *Mô tả hành vi / kịch bản* of sheet *Danh sách KH & Phân hạng*. The as-of date is 2026-09-18 (last journal day). Regenerate it from a new workbook with the standard-library script, which reads as many customers as the sheets contain:
 
 ```bash
-python3 apps/agent/tools/export_msb_dataset.py "~/Downloads/Data_mau_365ngay_20KH.xlsx"
+python3 apps/agent/tools/export_msb_dataset.py "~/Downloads/Data_mau_365ngay_40KH.xlsx"
 ```
 
-`apps/api/src/modules/metrics/metrics.formulas.spec.ts` asserts that the TypeScript formulas reproduce every golden row within a relative tolerance of 1e-6.
+`apps/api/src/modules/metrics/metrics.formulas.spec.ts` asserts that the TypeScript formulas reproduce every golden row within a relative tolerance of 1e-6. The securities column of the journal holds deposits into the securities account only (never negative).
 
 ### 3. Start web and API
 
@@ -178,18 +178,19 @@ and the window is echoed back on the analysis and its history entries.
 
 The public API requires `X-RM-ID` as a demo portfolio-scoping mechanism. It is not production authentication.
 
-Stable demo customers:
+Stable demo customers, with the scenario expected for the default view (last 90 days, as of 2026-09-18):
 
 | CIF | Expected scenario |
 | --- | --- |
-| `08102466` | At risk: 229 idle days, churn score 63.7, retention first |
-| `08100548` | Leverage 59x: loan-protection insurance, no loan offers |
-| `08101096` | CASA +16.3% without bonds: MSB certificates of deposit, FX package |
+| `08100274` | At risk: 94 idle days, empty CASA, term deposit closed, churn score 100, retention first |
+| `08100548` | Leverage 99x: loan-protection insurance, no loan offers |
+| `08100959` | CASA +28.4% without bonds: MSB certificates of deposit |
 | `08101918` | Customer Care First / Do Not Sell (open complaint) |
-| `08102740` | Highest value (Priority 53.5), top of the RB queue |
-| `08101507` | No action: core customer, `MAINTAIN` |
+| `08102740` | Highest value (TAV 5.81 bn, Priority 53.9), top of the RB queue, no rule fires |
+| `08102466` | Period-dependent: dormant since 2026-02-10, churn 47.7 over the last 90 days but 77.7 (retention) for the 90 days ending 2026-06-20 |
+| `08103288` | New CIF (opened 2026-08-05): `NEW_CIF_ONBOARDING` only fires for a 30-day period |
 
-Customers are split across RMs by branch: **RM001** (HCM branches), **RM002** (Hanoi branches and Sở Giao Dịch), **RM003** (Đà Nẵng). The RB queue at `GET /api/metrics/queue` and the dashboard are ordered by Priority Score. See [Demo scenarios](docs/DEMO-SCENARIOS.md).
+Customers are split across RMs by branch: **RM001** (HCM branches and Cần Thơ, 16 customers), **RM002** (Hanoi branches, Hải Phòng and Sở Giao Dịch, 20 customers), **RM003** (Đà Nẵng, 4 customers). The RB queue at `GET /api/metrics/queue` and the dashboard are ordered by Priority Score. See [Demo scenarios](docs/DEMO-SCENARIOS.md).
 
 ## Develop further
 

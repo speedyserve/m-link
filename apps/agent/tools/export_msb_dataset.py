@@ -1,12 +1,17 @@
-"""Export the MSB sample workbook (20 customers x 365 days) into committed dataset files.
+"""Export the MSB sample workbook (any number of customers x 365 days) into committed dataset files.
 
 Usage:
-    python apps/agent/tools/export_msb_dataset.py "~/Downloads/Data_mau_365ngay_20KH (1).xlsx"
+    python apps/agent/tools/export_msb_dataset.py "~/Downloads/Data_mau_365ngay_40KH.xlsx"
 
 Only the Python standard library is used (the workbook is parsed as OOXML) so the
 script runs in any environment without openpyxl or pandas. Output goes to
 apps/api/src/database/msb-dataset/ and is consumed by the API seed and the Jest
 golden test for the metric formulas. All identities in the workbook are synthetic.
+
+The customer sheets are read from their first data row down to the last consecutive row
+whose column A is an 8-digit CIF, so adding customers to the workbook needs no code
+change (the "Product Holding" totals row is ignored). The as-of date is the last day of
+the journal, never the wall clock.
 """
 
 from __future__ import annotations
@@ -157,11 +162,23 @@ def to_float(value: str | None) -> float:
     return float(value) if value not in (None, "") else 0.0
 
 
+CIF_PATTERN = re.compile(r"\d{8}")
+
+
+def cif_rows(rows: dict[int, dict[str, str | None]], first_row: int) -> list[dict[str, str | None]]:
+    """Consecutive rows from `first_row` whose column A is a CIF; stops at a totals or blank row."""
+    selected = []
+    index = first_row
+    while index in rows and CIF_PATTERN.fullmatch(str(rows[index].get("A") or "").strip()):
+        selected.append(rows[index])
+        index += 1
+    return selected
+
+
 def export_customers(workbook: Workbook) -> list[dict]:
     rows = workbook.rows(SHEET_CUSTOMERS)
     customers = []
-    for index in range(5, 25):
-        row = rows[index]
+    for row in cif_rows(rows, 5):
         customers.append(
             {
                 "cif": row["A"],
@@ -186,8 +203,7 @@ def export_holdings(workbook: Workbook) -> dict[str, dict[str, int]]:
     rows = workbook.rows(SHEET_HOLDINGS)
     letters = ["C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O"]
     holdings = {}
-    for index in range(4, 24):
-        row = rows[index]
+    for row in cif_rows(rows, 4):
         holdings[row["A"]] = {
             code: to_int(row.get(letter)) for code, letter in zip(HOLDING_CODES, letters, strict=True)
         }
@@ -198,8 +214,7 @@ def export_nbo(workbook: Workbook) -> dict[str, dict[str, int | None]]:
     rows = workbook.rows(SHEET_NBO)
     letters = ["C", "D", "E", "F", "G"]
     offers = {}
-    for index in range(5, 25):
-        row = rows[index]
+    for row in cif_rows(rows, 5):
         offers[row["A"]] = {}
         for code, letter in zip(NBO_CODES, letters, strict=True):
             raw = row.get(letter)
@@ -210,8 +225,7 @@ def export_nbo(workbook: Workbook) -> dict[str, dict[str, int | None]]:
 def export_metrics(workbook: Workbook) -> list[dict]:
     rows = workbook.rows(SHEET_METRICS)
     golden = []
-    for index in range(5, 25):
-        row = rows[index]
+    for row in cif_rows(rows, 5):
         record: dict[str, object] = {}
         for letter, (key, kind) in METRIC_COLUMNS.items():
             raw = row.get(letter)
@@ -262,6 +276,14 @@ def main() -> None:
     journal = export_journal(workbook)
     journal_rows = len(journal["rows"])
 
+    # Every customer sheet must describe the same customers, in the same order.
+    cifs = [customer["cif"] for customer in customers]
+    for sheet, listed in (("Product Holding", list(holdings)), ("Next Best Offer", list(offers)), (SHEET_METRICS, [g["cif"] for g in golden])):
+        if listed != cifs:
+            sys.exit(f"CIF list of sheet '{sheet}' differs from '{SHEET_CUSTOMERS}'")
+    # The as-of date is the last journal day (position_date is the second journal column).
+    position_dates = sorted({record[1] for record in journal["rows"]})
+
     def dump(name: str, payload: object) -> None:
         with (OUTPUT_DIR / name).open("w", encoding="utf-8") as handle:
             json.dump(payload, handle, ensure_ascii=False, indent=2)
@@ -279,8 +301,8 @@ def main() -> None:
         "manifest.json",
         {
             "source": source.name,
-            "asOfDate": "2026-09-18",
-            "firstPositionDate": "2025-09-19",
+            "asOfDate": position_dates[-1],
+            "firstPositionDate": position_dates[0],
             "customers": len(customers),
             "dailyPositions": journal_rows,
             "holdingCodes": HOLDING_CODES,

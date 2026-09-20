@@ -33,11 +33,11 @@ const input = (customerId: string, locale: 'vi' | 'en' = 'vi', period?: { period
   ({ customerId, objective: 'prepare_rm_brief', requestedBy: 'RM001', locale, ...period }) as const;
 
 describe('MockAgentClient (MSB sample portfolio)', () => {
-  it('returns a retention scenario for the churn-high customer 08102466', async () => {
-    const result = await clientWith(metricsFor({ customerId: '08102466', churnScore: 63.67, churnLabel: 'Cao', recencyDays: 229, priorityScore: 42.67 }))
-      .analyzeCustomer(input('08102466', 'en'));
+  it('returns a retention scenario for the churn-high customer 08100274', async () => {
+    const result = await clientWith(metricsFor({ customerId: '08100274', churnScore: 100, churnLabel: 'Cao', recencyDays: 94, priorityScore: 52.3 }))
+      .analyzeCustomer(input('08100274', 'en'));
     expect(result.summary.relationshipStatus).toBe('at_risk');
-    expect(result.summary.opportunityScore).toBe(42.7);
+    expect(result.summary.opportunityScore).toBe(52.3);
     expect(result.recommendations[0].type).toBe('retention');
     expect(result.guardrail.sellAllowed).toBe(true);
   });
@@ -66,9 +66,9 @@ describe('MockAgentClient (MSB sample portfolio)', () => {
   });
 
   it('recomputes metrics for the filtered window and echoes the period', async () => {
-    const result = await clientWith(metricsFor({ customerId: '08102466', churnScore: 63.67, churnLabel: 'Cao', recencyDays: 29, priorityScore: 48.2 }))
-      .analyzeCustomer(input('08102466', 'vi', { periodFrom: '2026-08-20', periodTo: '2026-09-18' }));
-    expect(lastGetAsOf).toEqual({ customerId: '08102466', asOf: '2026-09-18', windowDays: 30 });
+    const result = await clientWith(metricsFor({ customerId: '08100274', churnScore: 63.67, churnLabel: 'Cao', recencyDays: 29, priorityScore: 48.2 }))
+      .analyzeCustomer(input('08100274', 'vi', { periodFrom: '2026-08-20', periodTo: '2026-09-18' }));
+    expect(lastGetAsOf).toEqual({ customerId: '08100274', asOf: '2026-09-18', windowDays: 30 });
     expect(result.period).toEqual({ from: '2026-08-20', to: '2026-09-18', windowDays: 30 });
     expect(result.summary.opportunityScore).toBe(48.2);
     expect(result.signals[0].description).toContain('29 ngày');

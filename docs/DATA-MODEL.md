@@ -21,7 +21,7 @@ the sheet gives a limit, one deposit when FD was ever held). `deposits.maturity_
 
 ## Part B metrics (`customer_metrics`)
 
-Computed by `apps/api/src/modules/metrics/metrics.formulas.ts`, verified against all 20 rows of
+Computed by `apps/api/src/modules/metrics/metrics.formulas.ts`, verified against all 40 rows of
 sheet *Chỉ số đánh giá KH* (`metrics.formulas.spec.ts`, relative tolerance 1e-6). Windows use the
 journal day index: last 90 days = `day_index > N-90`, previous 90 = `N-180 < day_index <= N-90`.
 
@@ -35,7 +35,7 @@ journal day index: last 90 days = `day_index > N-90`, previous 90 = `N-180 < day
 | `loan_total`, `fd_current`, `bond_current`, `fund_cert_current` | last-day values |
 | `fd_avg_prev_90`, `fd_liquidated` | AVG FD previous window; `fd_current = 0 AND fd_avg_prev_90 > 0` |
 | `tav` | `casa_avg_90 + fd_current + bond_current + fund_cert_current` |
-| `leverage` | `loan_total / tav` (kept raw; the sample has 59x for a mortgage customer) |
+| `leverage` | `loan_total / tav` (kept raw; the sample has 99x for a mortgage customer) |
 | `phs`, `holding_count` | held lines / 13 |
 | `fx_volume_12m` | Σ FX flow over 365 days |
 | `ras_raw`, `ras` | `(bond + fund_cert + fx_volume_12m) / tav` exactly as the sheet; `ras = min(ras_raw, 1)` for classification because FX turnover is a flow and can exceed the asset base many times |

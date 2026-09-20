@@ -25,8 +25,8 @@ const signedPct = (value: number) => `${value > 0 ? '+' : ''}${pct(value)}`;
 const billions = (value: string | number) => `${(Number(value) / 1_000_000_000).toFixed(2)}`;
 
 const SCENARIOS: Record<string, Scenario> = {
-  // Nguyễn Văn S — long dormancy, term deposit closed mid-term, churn label Cao.
-  '08102466': ({ en, metrics: m, windowDays, score, evidence }) => ({
+  // Trần Bảo Ngọc — silent for 94 days with an emptied CASA, term deposit closed mid-term, churn label Cao.
+  '08100274': ({ en, metrics: m, windowDays, score, evidence }) => ({
     summary: {
       relationshipStatus: 'at_risk', opportunityScore: score,
       overview: en
@@ -54,7 +54,7 @@ const SCENARIOS: Record<string, Scenario> = {
     ],
     guardrail: { sellAllowed: true, reason: null },
   }),
-  // Nguyễn Văn D — loans far above the asset base.
+  // Phạm Đức Duy — loans far above the asset base.
   '08100548': ({ en, metrics: m, score, evidence }) => ({
     summary: {
       relationshipStatus: 'opportunity', opportunityScore: score,
@@ -77,8 +77,8 @@ const SCENARIOS: Record<string, Scenario> = {
     ],
     guardrail: { sellAllowed: true, reason: null },
   }),
-  // Nguyễn Văn H — CASA growing, heavy FX turnover, no bond or fund holding.
-  '08101096': ({ en, metrics: m, windowDays, score, evidence }) => ({
+  // Đặng Ngọc Hân — CASA growing (+28% over 90 days), no bond or fund holding, conservative risk appetite.
+  '08100959': ({ en, metrics: m, windowDays, score, evidence }) => ({
     summary: {
       relationshipStatus: 'opportunity', opportunityScore: score,
       overview: en ? 'CASA is growing with no bond or fund holdings — an investment conversation is timely.' : 'CASA tăng, chưa có Bond/CCQ — thời điểm phù hợp để tư vấn kênh sinh lời.',
@@ -86,8 +86,6 @@ const SCENARIOS: Record<string, Scenario> = {
     signals: [
       { type: 'casa_surge', title: en ? 'CASA growing' : 'CASA tăng', severity: 'medium', confidence: 0.9,
         description: en ? `${windowDays}-day CASA trend ${signedPct(m?.casaTrend ?? 0)}.` : `Xu hướng CASA ${windowDays} ngày ${signedPct(m?.casaTrend ?? 0)}.` },
-      { type: 'fx_active', title: en ? 'Frequent FX activity' : 'Giao dịch FX thường xuyên', severity: 'medium', confidence: 0.85,
-        description: en ? 'Large FX turnover over the last 12 months; high behavioural risk appetite.' : 'Doanh số ngoại tệ 12 tháng lớn; khẩu vị rủi ro thực tế cao.' },
     ],
     recommendations: [
       {
@@ -99,19 +97,10 @@ const SCENARIOS: Record<string, Scenario> = {
         evidence: [evidence('casaTrend', `casaTrend=${(m?.casaTrend ?? 0).toFixed(4)}`)],
         script: en ? 'Your current account balance has grown over this period. A certificate of deposit lets that money earn more while staying transferable.' : 'Số dư tài khoản của mình tăng trong kỳ này. Chứng chỉ tiền gửi MSB giúp khoản tiền đó sinh lời tốt hơn mà vẫn chuyển nhượng linh hoạt ạ.',
       },
-      {
-        priority: 2, type: 'investment', confidence: 0.74,
-        title: en ? 'Pru – Đầu tư vững tiến (unit-linked) for a high risk appetite' : 'Bảo hiểm liên kết đơn vị Pru – Đầu tư vững tiến theo khẩu vị rủi ro cao',
-        description: en ? 'Protection up to 110% of sum assured plus investment via 7 PRUlink funds.' : 'Bảo vệ tới 110% STBH kèm đầu tư qua 7 quỹ PRUlink.',
-        product: { id: 'BANCA_PRU_INVEST', name: 'Pru – Đầu tư vững tiến' },
-        reasons: en ? ['Declared and behavioural risk appetite: high'] : ['Khẩu vị khai báo và thực tế: Rủi ro cao'],
-        evidence: [evidence('ras', `ras=${(m?.ras ?? 0).toFixed(2)}`)],
-        script: en ? 'If you are comfortable with market risk, a unit-linked plan combines protection with fund investment.' : 'Nếu mình chấp nhận rủi ro thị trường, gói liên kết đơn vị vừa bảo vệ vừa đầu tư qua các quỹ PRUlink ạ.',
-      },
     ],
     guardrail: { sellAllowed: true, reason: null },
   }),
-  // Nguyễn Văn O — open complaint about debt collection: care first, no selling, regardless of the period.
+  // Trịnh Hoàng Phúc — open complaint about debt collection: care first, no selling, regardless of the period.
   '08101918': ({ en }) => ({
     summary: {
       relationshipStatus: 'customer_care_first', opportunityScore: 0,
@@ -124,7 +113,7 @@ const SCENARIOS: Record<string, Scenario> = {
     recommendations: [],
     guardrail: { sellAllowed: false, reason: en ? 'Open complaint and repeated negative customer contacts' : 'Khiếu nại đang mở và nhiều tương tác tiêu cực liên tiếp' },
   }),
-  // Nguyễn Văn U — largest total asset value of the portfolio, FX is the top-ranked offer.
+  // Hồ Bảo Uyên — largest total asset value of the portfolio, FX is its second-ranked offer (after bancassurance).
   '08102740': ({ en, metrics: m, score, evidence }) => ({
     summary: {
       relationshipStatus: 'opportunity', opportunityScore: score,
@@ -138,9 +127,9 @@ const SCENARIOS: Record<string, Scenario> = {
       {
         priority: 1, type: 'cross_sell', confidence: 0.78,
         title: en ? 'Offer the FX / international transfer package (SWIFT)' : 'Giới thiệu gói ưu đãi tỷ giá / chuyển tiền quốc tế SWIFT',
-        description: en ? 'FX is the top-ranked Next Best Offer for this customer.' : 'FX là Next Best Offer xếp hạng 1 của khách hàng.',
+        description: en ? 'FX is the second-ranked Next Best Offer for this customer.' : 'FX là Next Best Offer xếp hạng 2 của khách hàng.',
         product: { id: 'FX_SWIFT_PACKAGE', name: en ? 'FX & SWIFT transfer package' : 'Gói FX & chuyển tiền quốc tế SWIFT' },
-        reasons: en ? ['Next Best Offer rank 1: FX', 'High behavioural risk appetite'] : ['Next Best Offer hạng 1: FX', 'Khẩu vị rủi ro thực tế cao'],
+        reasons: en ? ['Next Best Offer rank 2: FX', 'High behavioural risk appetite'] : ['Next Best Offer hạng 2: FX', 'Khẩu vị rủi ro thực tế cao'],
         evidence: [evidence('valueScore', `valueScore=${(m?.valueScore ?? 0).toFixed(1)}`)],
         script: en ? 'As one of our most valued investors, you can access preferential FX rates and SWIFT transfers — shall we review your international needs?' : 'Là một trong những khách hàng đầu tư giá trị nhất, anh/chị được hưởng tỷ giá ưu đãi và kênh SWIFT — mình cùng xem nhu cầu ngoại tệ sắp tới nhé?',
       },

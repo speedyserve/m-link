@@ -30,13 +30,21 @@ describe('metrics as of an earlier journal day', () => {
     expect(rows.get('08102740')!.priorityScore).toBeCloseTo(golden.priorityScore, 6);
   });
 
-  it('as of day 275 (2026-06-20) the dormant customer is already at risk', () => {
+  it('the same customer reads very differently as of different days (08102466: last active 2026-02-10, FD closed 2026-03-20)', () => {
+    const early = new Map(computePortfolioMetrics(inputsAsOf('2026-02-15')).map((row) => [row.customerId, row])).get('08102466')!;
+    expect(early.recencyDays).toBe(5);
+    expect(early.churnScore).toBeLessThan(20);
+    expect(early.fdCurrent).toBe(1_142_000_000);
+    expect(early.fdLiquidated).toBe(false);
+
+    // As of day 275 (2026-06-20) the customer is already at high risk with the term deposit gone.
     const rows = new Map(computePortfolioMetrics(inputsAsOf('2026-06-20')).map((row) => [row.customerId, row]));
     const s = rows.get('08102466')!;
-    expect(s.recencyDays).toBe(229 - 90);
-    expect(s.churnScore).toBeGreaterThanOrEqual(40);
-    expect(s.fdCurrent).toBe(1_750_000_000); // FD was only closed on 2026-07-23
-    expect(s.fdLiquidated).toBe(false);
+    expect(s.recencyDays).toBe(220 - 90);
+    expect(s.churnScore).toBeGreaterThanOrEqual(60);
+    expect(s.churnLabel).toBe('Cao');
+    expect(s.fdCurrent).toBe(0);
+    expect(s.fdLiquidated).toBe(true);
     // Value Score stays portfolio-relative: exactly one customer scores 100 on any day.
     expect([...rows.values()].filter((row) => Math.abs(row.valueScore - 100) < 1e-9)).toHaveLength(1);
   });
@@ -48,7 +56,7 @@ describe('metrics as of an earlier journal day', () => {
     expect(daysBetween('2025-09-19', '2025-12-31') + 1).toBeGreaterThanOrEqual(requiredHistoryDays(30));
     // Formulas still run on a short history (previous window simply has fewer or no days).
     const rows = computePortfolioMetrics(inputsAsOf('2025-12-31'));
-    expect(rows).toHaveLength(20);
+    expect(rows).toHaveLength(40);
     expect(rows.every((row) => Number.isFinite(row.priorityScore))).toBe(true);
   });
 });

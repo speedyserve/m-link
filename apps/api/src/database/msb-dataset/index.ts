@@ -1,6 +1,6 @@
 /**
  * Typed access to the committed MSB sample dataset (exported from
- * Data_mau_365ngay_20KH.xlsx by apps/agent/tools/export_msb_dataset.py).
+ * Data_mau_365ngay_40KH.xlsx by apps/agent/tools/export_msb_dataset.py).
  * JSON is imported so `tsc` emits it into dist for the seed and Docker image.
  */
 import creditLimits from './credit_limits.json';
@@ -55,7 +55,7 @@ export const msbDataset = {
 
 let cachedPositions: DailyPositionRecord[] | null = null;
 
-/** Expands the compact column/row journal into typed records (7,300 rows). */
+/** Expands the compact column/row journal into typed records (14,600 rows). */
 export function loadDailyPositions(): DailyPositionRecord[] {
   if (cachedPositions) return cachedPositions;
   const columns = dailyPositions.columns as string[];

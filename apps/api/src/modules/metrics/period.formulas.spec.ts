@@ -23,29 +23,35 @@ describe('summarizePeriod against the golden sheet', () => {
     expect(summary.balances.fdBalance.end).toBe(g.fdCurrent);
     expect(summary.balances.bondBalance.end).toBe(g.bondCurrent);
     expect(summary.balances.fundCertValue.end).toBe(g.fundCertCurrent);
-    expect(summary.totalAssets.end).toBe(29_631_000 + g.fdCurrent + g.bondCurrent + g.fundCertCurrent);
+    expect(summary.totalAssets.end).toBe(80_430_000 + g.fdCurrent + g.bondCurrent + g.fundCertCurrent);
   });
 
   it('monthly averages match sheet "CASA-FD binh quan 12 thang"', () => {
     const summary = summarizePeriod('08100137', rows('08100137'), { from: '2025-10-01', to: '2025-10-31' });
     expect(summary.byMonth).toHaveLength(1);
     expect(summary.byMonth[0].monthKey).toBe('202510');
-    expect(summary.byMonth[0].casaAvg).toBeCloseTo(49_987_322.5806452, 4);
+    expect(summary.byMonth[0].casaAvg).toBeCloseTo(58_753_580.6451613, 4);
     expect(summary.byMonth[0].fdAvg).toBe(2_244_000_000);
   });
 
-  it('splits securities flows into buy and sell legs', () => {
+  it('treats the securities column as deposits only: every amount is on the buy leg, nothing on the sell leg', () => {
     const summary = summarizePeriod('08100137', rows('08100137'), { from: '2025-09-19', to: '2026-09-18' });
     const securities = summary.flows.SECURITIES;
+    expect(securities.total).toBeGreaterThan(0);
     expect(securities.buy! + securities.sell!).toBeCloseTo(securities.total, 6);
-    expect(securities.sell).toBeGreaterThan(0);
+    expect(securities.buy).toBeCloseTo(securities.total, 6);
+    expect(securities.sell).toBe(0);
   });
 
-  it('records dormancy for the churn-high customer', () => {
+  it('records dormancy for the dormant customer', () => {
     const summary = summarizePeriod('08102466', rows('08102466'), { from: '2026-06-21', to: '2026-09-18' });
     expect(summary.activity.activeDays).toBe(0);
     expect(summary.activity.lastActiveDate).toBeNull();
-    expect(summary.balances.fdBalance.start).toBe(1_750_000_000);
+  });
+
+  it('shows the term deposit of the dormant customer closing in March', () => {
+    const summary = summarizePeriod('08102466', rows('08102466'), { from: '2026-03-01', to: '2026-03-31' });
+    expect(summary.balances.fdBalance.start).toBe(1_142_000_000);
     expect(summary.balances.fdBalance.end).toBe(0);
   });
 });

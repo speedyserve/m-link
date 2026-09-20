@@ -1,6 +1,6 @@
 /**
- * Seeds the MSB sample portfolio: 20 customers x 365 daily positions exported from
- * Data_mau_365ngay_20KH.xlsx (see msb-dataset/ and apps/agent/tools/export_msb_dataset.py).
+ * Seeds the MSB sample portfolio: 40 customers x 365 daily positions exported from
+ * Data_mau_365ngay_40KH.xlsx (see msb-dataset/ and apps/agent/tools/export_msb_dataset.py).
  *
  * The seed always truncates: customer ids are CIFs, so leftovers from another dataset
  * would otherwise survive an upsert. Legacy tables (accounts, transactions, cards,
