@@ -9,29 +9,29 @@
   "08100274": {
     "CREDIT_CARD": 1,
     "BANCA": null,
-    "FX": 4,
+    "FX": 3,
     "BOND": 2,
-    "LOAN": 3
-  },
-  "08100411": {
-    "CREDIT_CARD": 3,
-    "BANCA": 2,
-    "FX": 5,
-    "BOND": 1,
     "LOAN": 4
   },
-  "08100548": {
+  "08100411": {
     "CREDIT_CARD": 1,
-    "BANCA": 4,
+    "BANCA": 3,
     "FX": 2,
-    "BOND": 3,
+    "BOND": 4,
+    "LOAN": 5
+  },
+  "08100548": {
+    "CREDIT_CARD": 4,
+    "BANCA": 3,
+    "FX": 2,
+    "BOND": 1,
     "LOAN": null
   },
   "08100685": {
     "CREDIT_CARD": null,
     "BANCA": 3,
-    "FX": 2,
-    "BOND": 1,
+    "FX": 1,
+    "BOND": 2,
     "LOAN": 4
   },
   "08100822": {
@@ -42,32 +42,32 @@
     "LOAN": 1
   },
   "08100959": {
-    "CREDIT_CARD": 3,
-    "BANCA": 4,
-    "FX": 2,
-    "BOND": 1,
-    "LOAN": 5
+    "CREDIT_CARD": 2,
+    "BANCA": 5,
+    "FX": 3,
+    "BOND": 4,
+    "LOAN": 1
   },
   "08101096": {
-    "CREDIT_CARD": 1,
-    "BANCA": 2,
+    "CREDIT_CARD": 4,
+    "BANCA": 1,
     "FX": null,
     "BOND": 3,
-    "LOAN": 4
+    "LOAN": 2
   },
   "08101233": {
-    "CREDIT_CARD": 1,
-    "BANCA": 3,
-    "FX": 2,
-    "BOND": 4,
+    "CREDIT_CARD": 4,
+    "BANCA": 1,
+    "FX": 3,
+    "BOND": 2,
     "LOAN": null
   },
   "08101370": {
-    "CREDIT_CARD": 1,
+    "CREDIT_CARD": 4,
     "BANCA": null,
-    "FX": 3,
-    "BOND": 2,
-    "LOAN": 4
+    "FX": 2,
+    "BOND": 1,
+    "LOAN": 3
   },
   "08101507": {
     "CREDIT_CARD": null,
@@ -77,18 +77,18 @@
     "LOAN": null
   },
   "08101644": {
-    "CREDIT_CARD": 4,
-    "BANCA": 3,
-    "FX": 1,
+    "CREDIT_CARD": 1,
+    "BANCA": 4,
+    "FX": 3,
     "BOND": 2,
     "LOAN": 5
   },
   "08101781": {
-    "CREDIT_CARD": 1,
-    "BANCA": 4,
-    "FX": 3,
+    "CREDIT_CARD": 3,
+    "BANCA": 2,
+    "FX": 1,
     "BOND": null,
-    "LOAN": 2
+    "LOAN": 4
   },
   "08101918": {
     "CREDIT_CARD": null,
@@ -100,43 +100,183 @@
   "08102055": {
     "CREDIT_CARD": null,
     "BANCA": 4,
+    "FX": 2,
+    "BOND": 1,
+    "LOAN": 3
+  },
+  "08102192": {
+    "CREDIT_CARD": 1,
+    "BANCA": 4,
+    "FX": 3,
+    "BOND": 5,
+    "LOAN": 2
+  },
+  "08102329": {
+    "CREDIT_CARD": null,
+    "BANCA": 2,
+    "FX": 1,
+    "BOND": 3,
+    "LOAN": null
+  },
+  "08102466": {
+    "CREDIT_CARD": 2,
+    "BANCA": 4,
+    "FX": 5,
+    "BOND": 3,
+    "LOAN": 1
+  },
+  "08102603": {
+    "CREDIT_CARD": 3,
+    "BANCA": null,
+    "FX": 4,
+    "BOND": 1,
+    "LOAN": 2
+  },
+  "08102740": {
+    "CREDIT_CARD": 3,
+    "BANCA": 1,
+    "FX": 2,
+    "BOND": null,
+    "LOAN": null
+  },
+  "08102877": {
+    "CREDIT_CARD": 4,
+    "BANCA": 2,
+    "FX": 1,
+    "BOND": 3,
+    "LOAN": 5
+  },
+  "08103014": {
+    "CREDIT_CARD": null,
+    "BANCA": 2,
+    "FX": 1,
+    "BOND": 3,
+    "LOAN": 4
+  },
+  "08103151": {
+    "CREDIT_CARD": 3,
+    "BANCA": 4,
+    "FX": 1,
+    "BOND": 2,
+    "LOAN": null
+  },
+  "08103288": {
+    "CREDIT_CARD": 1,
+    "BANCA": 3,
+    "FX": 2,
+    "BOND": 5,
+    "LOAN": 4
+  },
+  "08103425": {
+    "CREDIT_CARD": 5,
+    "BANCA": 3,
+    "FX": 4,
+    "BOND": 1,
+    "LOAN": 2
+  },
+  "08103562": {
+    "CREDIT_CARD": null,
+    "BANCA": 4,
+    "FX": 1,
+    "BOND": 2,
+    "LOAN": 3
+  },
+  "08103699": {
+    "CREDIT_CARD": 2,
+    "BANCA": 1,
+    "FX": 3,
+    "BOND": 4,
+    "LOAN": null
+  },
+  "08103836": {
+    "CREDIT_CARD": 5,
+    "BANCA": 4,
     "FX": 3,
     "BOND": 1,
     "LOAN": 2
   },
-  "08102192": {
-    "CREDIT_CARD": 5,
-    "BANCA": 4,
-    "FX": 3,
-    "BOND": 2,
-    "LOAN": 1
-  },
-  "08102329": {
-    "CREDIT_CARD": null,
-    "BANCA": 1,
-    "FX": 3,
-    "BOND": 2,
-    "LOAN": null
-  },
-  "08102466": {
-    "CREDIT_CARD": 1,
-    "BANCA": 4,
-    "FX": 3,
-    "BOND": 2,
-    "LOAN": 5
-  },
-  "08102603": {
+  "08103973": {
     "CREDIT_CARD": 1,
     "BANCA": null,
     "FX": 4,
     "BOND": 2,
     "LOAN": 3
   },
-  "08102740": {
-    "CREDIT_CARD": 3,
+  "08104110": {
+    "CREDIT_CARD": null,
+    "BANCA": 1,
+    "FX": 4,
+    "BOND": 3,
+    "LOAN": 2
+  },
+  "08104247": {
+    "CREDIT_CARD": 4,
     "BANCA": 2,
+    "FX": 3,
+    "BOND": 5,
+    "LOAN": 1
+  },
+  "08104384": {
+    "CREDIT_CARD": 3,
+    "BANCA": null,
+    "FX": 1,
+    "BOND": 2,
+    "LOAN": 4
+  },
+  "08104521": {
+    "CREDIT_CARD": 2,
+    "BANCA": 1,
+    "FX": 3,
+    "BOND": 5,
+    "LOAN": 4
+  },
+  "08104658": {
+    "CREDIT_CARD": 1,
+    "BANCA": 4,
+    "FX": 2,
+    "BOND": 3,
+    "LOAN": null
+  },
+  "08104795": {
+    "CREDIT_CARD": 2,
+    "BANCA": 3,
+    "FX": 1,
+    "BOND": 4,
+    "LOAN": 5
+  },
+  "08104932": {
+    "CREDIT_CARD": 3,
+    "BANCA": 4,
     "FX": 1,
     "BOND": null,
-    "LOAN": null
+    "LOAN": 2
+  },
+  "08105069": {
+    "CREDIT_CARD": null,
+    "BANCA": 4,
+    "FX": 3,
+    "BOND": 1,
+    "LOAN": 2
+  },
+  "08105206": {
+    "CREDIT_CARD": 2,
+    "BANCA": 3,
+    "FX": 1,
+    "BOND": 5,
+    "LOAN": 4
+  },
+  "08105343": {
+    "CREDIT_CARD": 1,
+    "BANCA": 3,
+    "FX": null,
+    "BOND": 4,
+    "LOAN": 2
+  },
+  "08105480": {
+    "CREDIT_CARD": 3,
+    "BANCA": 2,
+    "FX": 4,
+    "BOND": 5,
+    "LOAN": 1
   }
 }

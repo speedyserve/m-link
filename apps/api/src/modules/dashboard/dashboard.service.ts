@@ -7,7 +7,7 @@ import { MetricsService } from '../metrics/metrics.service';
 import { SUGGESTION_LABELS } from '../metrics/suggestion-labels';
 import { RmsService } from '../rms/rms.service';
 
-/** Portfolio thresholds on the Part B metrics. Priority Score in the sample spans 19.6–53.5. */
+/** Portfolio thresholds on the Part B metrics. Priority Score in the sample spans 18.5–53.9. */
 export const DASHBOARD_THRESHOLDS = { highPriority: 40 } as const;
 
 const round1 = (value: number) => Math.round(value * 10) / 10;

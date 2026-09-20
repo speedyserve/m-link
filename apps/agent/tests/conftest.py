@@ -1,4 +1,8 @@
-"""Shared fixtures: metric payloads that mirror sheet "Chỉ số đánh giá KH" for key CIFs."""
+"""Shared fixtures: metric payloads shaped like sheet "Chỉ số đánh giá KH".
+
+The values are frozen unit-test inputs taken from the first 20-customer sample workbook; they are
+independent of the dataset committed under apps/api/src/database/msb-dataset/ and are not updated with it.
+"""
 
 from __future__ import annotations
 

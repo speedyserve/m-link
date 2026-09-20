@@ -1,9 +1,9 @@
 {
-  "source": "Data_mau_365ngay_20KH (1).xlsx",
+  "source": "Data_mau_365ngay_40KH 2109.xlsx",
   "asOfDate": "2026-09-18",
   "firstPositionDate": "2025-09-19",
-  "customers": 20,
-  "dailyPositions": 7300,
+  "customers": 40,
+  "dailyPositions": 14600,
   "holdingCodes": [
     "ACCOUNT",
     "CASA",
