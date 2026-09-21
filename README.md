@@ -92,7 +92,7 @@ Open these URLs:
 
 - Web: http://localhost:3000
 - API health: http://localhost:4000/health
-- Swagger: http://localhost:4000/docs
+- Swagger: http://localhost:4000/docs (development only; disabled when `NODE_ENV=production`)
 
 ## Run the local Agent end to end
 
@@ -250,3 +250,26 @@ The first command should show an ignore rule for every local environment file. R
 The API Dockerfile accepts Railway-style `PORT` and `DATABASE_URL`. Run migrations as the platform pre-deploy command; never use TypeORM schema synchronization or auto-seed production. Set `CORS_ORIGINS` to the deployed web origin. Deploy the web with `NEXT_PUBLIC_API_BASE_URL` set to the public API URL.
 
 Agent and API must be deployed on a private network or otherwise protect the Agent endpoint with the matching API key. Keep `INTERNAL_AGENT_TOKEN`, `AGENT_API_KEY`, and `LLM_API_KEY` in the platform secret manager, not source control.
+
+### Railway (API) and Vercel (web)
+
+Railway builds `apps/api/Dockerfile` from the repository root; `railway.json` pins the pre-deploy
+migration, the `/health/ready` probe, and the start command. Railway injects `PORT`, so leave it
+unset and point `DATABASE_URL` at the Postgres plugin. Keep `AGENT_PROVIDER=mock` until the Agent is
+deployed — `AGENT_BASE_URL` is read only by `GreenNodeAgentClient`, so a placeholder value is inert
+while the mock client is selected.
+
+The production image carries `dist/database/seed.js` together with the `msb-dataset` JSON, so the
+demo dataset loads through a one-off platform command instead of exposing the database publicly:
+
+```bash
+node apps/api/dist/database/seed.js
+```
+
+Seeding truncates every table, so run it once after the first deploy and never from the deploy
+pipeline.
+
+Vercel uses `apps/web` as its root directory and runs the `vercel-build` script, which compiles
+`@mlink/contracts` before `next build`. `NEXT_PUBLIC_API_BASE_URL` is inlined at build time, so
+changing it requires a rebuild rather than a redeploy. Vercel preview deployments get a fresh
+hostname each time and are blocked by CORS unless that origin is added to `CORS_ORIGINS`.

@@ -21,4 +21,4 @@ in flight, regardless of period: a second concurrent request returns 409 `ANALYS
 Internal equivalents live below `/internal/customers/:id` (including `/metrics?asOf&windowDays`,
 `/holdings`, `/next-best-offers`, `/positions?from&to`, `/period-summary?from&to`) and require `Authorization: Bearer INTERNAL_AGENT_TOKEN`. They
 are GET-only. Errors use `{code,message,details?}` and never include provider stacks or secrets.
-Swagger at `/docs` is the executable route reference.
+Swagger at `/docs` is the executable route reference, served only when `NODE_ENV` is not `production`.

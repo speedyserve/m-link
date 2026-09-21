@@ -16,11 +16,15 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-RM-ID'],
   });
   app.useGlobalFilters(new ApiExceptionFilter());
-  const config = new DocumentBuilder()
-    .setTitle('M-Link API').setDescription('Banking and Agent integration APIs').setVersion('1.0')
-    .addApiKey({ type: 'apiKey', in: 'header', name: 'X-RM-ID' }, 'rm-id')
-    .addBearerAuth(undefined, 'internal-agent-token').build();
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+  // The deployed API is reachable from the public internet and X-RM-ID is not authentication,
+  // so the route catalogue stays off outside development.
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('M-Link API').setDescription('Banking and Agent integration APIs').setVersion('1.0')
+      .addApiKey({ type: 'apiKey', in: 'header', name: 'X-RM-ID' }, 'rm-id')
+      .addBearerAuth(undefined, 'internal-agent-token').build();
+    SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+  }
   await app.listen(Number(process.env.PORT ?? 4000), '0.0.0.0');
 }
 
