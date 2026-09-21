@@ -126,7 +126,7 @@ export default function DashboardPage() {
                 {barTooltip}
                 <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={22} isAnimationActive={false}>
                   {insight.churnData.map((row) => <Cell key={row.key} fill={row.color}/>)}
-                  <LabelList dataKey="value" position="right" style={{ fontSize: 12, fontWeight: 800, fill: '#1f3357' }}/>
+                  <LabelList dataKey="value" position="right" style={{ fontSize: 12, fontWeight: 800, fill: '#332f2b' }}/>
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -142,7 +142,7 @@ export default function DashboardPage() {
                 <YAxis type="category" dataKey="name" width={96} fontSize={11} tickLine={false} axisLine={false}/>
                 {barTooltip}
                 <Bar dataKey="value" fill="#ea4e24" radius={[0, 6, 6, 0]} barSize={22} isAnimationActive={false}>
-                  <LabelList dataKey="value" position="right" style={{ fontSize: 12, fontWeight: 800, fill: '#1f3357' }}/>
+                  <LabelList dataKey="value" position="right" style={{ fontSize: 12, fontWeight: 800, fill: '#332f2b' }}/>
                 </Bar>
               </BarChart>
             </ResponsiveContainer> : <Empty message={t('empty')}/>}

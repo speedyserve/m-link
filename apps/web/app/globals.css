@@ -5,18 +5,18 @@
 /*
  * MSB design tokens. Hex values marked (MSB) are taken from the bank's own theme stylesheets
  * (wp-content/themes/msb-website/assets/css/child-style.css and style.css); the rest are derived
- * shades of those two anchors. Navy carries structure, orange carries calls to action.
+ * shades of the MSB orange anchor. The workspace uses warm neutrals so orange can lead.
  */
 :root {
   color-scheme: light;
 
-  --navy-900: #1f3357;   /* MSB primary */
-  --navy-800: #2c4268;
-  --navy-700: #3a5279;
-  --navy-500: #647694;   /* MSB secondary text */
-  --navy-200: #c3cfe1;
-  --navy-100: #dee5ef;   /* MSB borders */
-  --navy-50:  #f2f5fa;
+  --navy-900: #332f2b;   /* Warm graphite for readable text only */
+  --navy-800: #4c4640;
+  --navy-700: #625b54;
+  --navy-500: #827970;   /* Secondary text */
+  --navy-200: #dfd9d3;
+  --navy-100: #eee9e4;   /* Warm borders */
+  --navy-50:  #faf8f6;
 
   --orange-500: #ea4e24; /* accent call to action */
   --orange-600: #d5401a; /* accent hover */
@@ -24,7 +24,7 @@
   --orange-300: #ff9466;
   --orange-50: #fdeee9;
 
-  --canvas: #f3f5f7;     /* Quiet workspace background */
+  --canvas: #fffdfa;
   --danger: #ef4444;
   --success: #157f4d;    /* money movement only, never branding */
   --teal-50: #eaf7f5;
@@ -33,12 +33,12 @@
   --ink: var(--navy-900);
   --muted: var(--navy-500);
   /* Kept darker than --ink: this sits on the orange CTA, where contrast is tightest. */
-  --ink-on-orange: #12253f;
+  --ink-on-orange: #482015;
 
   --radius: 8px;
   --radius-sm: 6px;
   --radius-pill: 999px;
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, .05), 0 8px 22px rgba(31, 51, 87, .035);
+  --shadow-card: 0 1px 2px rgba(74, 56, 42, .04), 0 8px 22px rgba(74, 56, 42, .025);
   --shadow-orange: 0 6px 18px rgba(234, 78, 36, .22);
   --sidebar-width: 16rem;
 }
@@ -63,7 +63,12 @@ button, input, select { font: inherit; }
  */
 @layer components {
 /* ---- Application frame: light sidebar, light top bar --------------------------------------- */
-.sidebar { background: #fff; color: var(--navy-500); border-right: 1px solid var(--navy-100); }
+.sidebar {
+  background: #fff url('/brand/msb-sidebar-background.png') center bottom / cover no-repeat;
+  color: var(--navy-500);
+  border-right: 1px solid var(--navy-100);
+}
+.sidebar > :last-child { background: rgba(255, 255, 255, .94); backdrop-filter: blur(10px); }
 .nav-link {
   display: flex;
   align-items: center;
@@ -184,34 +189,33 @@ th:last-child, td:last-child { padding-right: 1.25rem; }
 }
 
 /* Operational page introduction: compact enough to keep the live queue in view. */
-.workspace-hero {
+/* Hero banners share the MSB campaign artwork; a red-to-orange wash on the left keeps white text legible. */
+.workspace-hero, .customer-hero {
   position: relative;
   overflow: hidden;
-  border: 1px solid var(--navy-100);
   border-radius: var(--radius);
-  background: #fff;
-  box-shadow: var(--shadow-card);
+  background:
+    linear-gradient(90deg, rgba(128, 14, 14, .94) 0%, rgba(196, 34, 22, .86) 38%, rgba(234, 78, 36, .45) 62%, rgba(234, 78, 36, 0) 82%),
+    url('/brand/msb-hero-bg.jpg') right center / cover no-repeat,
+    #c9261a;
+  box-shadow: 0 10px 28px rgba(180, 40, 20, .18);
+  color: #fff;
 }
-.workspace-hero::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 6px;
-  background: var(--orange-500);
-  content: '';
-}
-.workspace-hero-content { padding: 1.5rem 1.75rem 1.5rem 2rem; }
-.workspace-hero-eyebrow { color: var(--orange-600); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.workspace-hero-title { margin: .4rem 0 0; color: var(--navy-900); font-size: 1.65rem; font-weight: 900; letter-spacing: 0; line-height: 1.12; }
-.workspace-hero-accent { color: var(--orange-600); }
-.workspace-hero-description { max-width: 52rem; margin: .65rem 0 0; color: var(--navy-700); font-size: .9rem; line-height: 1.55; }
+.workspace-hero-content { position: relative; padding: 1.75rem 2rem; min-height: 11rem; }
+.workspace-hero-eyebrow { color: #ffd2b3; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.workspace-hero-title { margin: .4rem 0 0; color: #fff; font-size: 1.85rem; font-weight: 900; letter-spacing: 0; line-height: 1.12; text-transform: uppercase; }
+.workspace-hero-accent { color: #ffbf8a; }
+.workspace-hero-description { max-width: 46rem; margin: .65rem 0 0; color: rgba(255, 255, 255, .88); font-size: .9rem; line-height: 1.55; }
+.workspace-hero .button, .customer-hero .button { background: #fff; color: var(--orange-600); }
+.workspace-hero .button:hover, .customer-hero .button:hover { background: #fff4ec; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
 
 /* KPI cards use a small colour rail instead of repeated tinted panels. */
 .metric-tile { position: relative; display: flex; min-height: 112px; align-items: center; gap: 1rem; overflow: hidden; border: 1px solid var(--navy-100); border-radius: var(--radius); background: #fff; padding: 1.15rem 1.25rem; box-shadow: var(--shadow-card); }
-.metric-tile::before { position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--navy-700); content: ''; }
+.metric-tile::before { position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--orange-300); content: ''; }
 .metric-tile--orange::before { background: var(--orange-500); }
 .metric-tile--danger::before { background: var(--danger); }
 .metric-tile--success::before { background: var(--teal-600); }
-.metric-tile__icon { display: grid; height: 2.75rem; width: 2.75rem; flex: none; place-items: center; border: 1px solid var(--navy-100); border-radius: var(--radius-sm); background: var(--navy-50); color: var(--navy-700); }
+.metric-tile__icon { display: grid; height: 2.75rem; width: 2.75rem; flex: none; place-items: center; border: 1px solid var(--orange-300); border-radius: var(--radius-sm); background: var(--orange-50); color: var(--orange-600); }
 .metric-tile--orange .metric-tile__icon { background: var(--orange-50); border-color: var(--orange-300); color: var(--orange-600); }
 .metric-tile--danger .metric-tile__icon { background: #fff3f3; border-color: #fecaca; color: var(--danger); }
 .metric-tile--success .metric-tile__icon { background: var(--teal-50); border-color: #a7e3d9; color: var(--teal-600); }
@@ -229,3 +233,13 @@ th:last-child, td:last-child { padding-right: 1.25rem; }
 }
 }
 @keyframes shimmer { to { background-position: -200% 0; } }
+
+/* On narrow screens the text spans the whole banner, so the wash covers it fully. */
+@media (max-width: 767px) {
+  .workspace-hero, .customer-hero {
+    background:
+      linear-gradient(90deg, rgba(128, 14, 14, .93), rgba(196, 34, 22, .82)),
+      url('/brand/msb-hero-bg.jpg') 70% center / cover no-repeat,
+      #c9261a;
+  }
+}

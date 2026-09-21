@@ -44,7 +44,7 @@ type Locale = 'vi' | 'en';
 type T = ReturnType<typeof useApp>['t'];
 const TX_PAGE_SIZE = 25;
 const TREND_SERIES = [
-  { key: 'casa' as const, name: 'CASA', color: '#1f3357' },
+  { key: 'casa' as const, name: 'CASA', color: '#827970' },
   { key: 'fd' as const, name: 'FD', color: '#ea4e24' },
   { key: 'invest' as const, name: 'Bond + CCQ', color: '#157f4d' },
 ];
@@ -106,19 +106,18 @@ function CustomerDetail() {
   return <>
     <Link href="/customers" className="inline-flex items-center gap-2 text-sm font-bold text-navy-500 hover:text-navy-900"><ArrowLeft size={16}/>{t('customers')}</Link>
     <section className="card overflow-hidden">
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#fff7ee] via-[#ffe6c9] to-[#ffc287] p-5 md:p-6">
-        <div className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-orange-bright/25 blur-3xl"/>
-        <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+      <div className="customer-hero p-5 md:p-6" style={{ borderRadius: 0 }}>
+        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <Avatar name={c.fullName} size={64}/>
             <div>
-              <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-black md:text-3xl">{c.fullName}</h1><Badge tone="good">{c.tier}</Badge>{m && <Badge tone={churnTone(m.churnLabel)}>{churnText(m.churnLabel, t)}</Badge>}</div>
-              <p className="mt-1 text-sm font-medium text-navy-700">CIF {c.customerCode} · {c.branch ?? '—'} · {t('customerSince')} {formatDay(c.customerSince.slice(0, 10), locale)}</p>
+              <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-black text-white md:text-3xl">{c.fullName}</h1><Badge tone="good">{c.tier}</Badge>{m && <Badge tone={churnTone(m.churnLabel)}>{churnText(m.churnLabel, t)}</Badge>}</div>
+              <p className="mt-1 text-sm font-medium text-white/85">CIF {c.customerCode} · {c.branch ?? '—'} · {t('customerSince')} {formatDay(c.customerSince.slice(0, 10), locale)}</p>
               <div className="mt-2 flex flex-wrap gap-2">{c.declaredBehaviour && <Badge>{c.declaredBehaviour}</Badge>}{c.declaredRiskAppetite && <Badge>{c.declaredRiskAppetite}</Badge>}</div>
             </div>
           </div>
           <div className="flex items-center gap-5">
-            {m && <div className="rounded-xl border border-orange-300 bg-white/70 px-4 py-3 text-right backdrop-blur">
+            {m && <div className="rounded-xl border border-white/60 bg-white/90 px-4 py-3 text-right backdrop-blur">
               <div className="text-[11px] font-bold uppercase tracking-wider text-navy-500">{t('priorityScore')}</div>
               <div className="text-4xl font-black leading-tight text-orange-600">{m.priorityScore.toFixed(1)}</div>
               {asOf && <div className="flex items-center justify-end gap-1 text-[11px] text-navy-500">{t('computedAt')} {formatDay(asOf.asOfDate, locale)}{asOf.insufficientHistory && <AlertTriangle size={12} className="text-orange-600" aria-label={t('insufficientHistory')}/>}</div>}
@@ -158,7 +157,7 @@ function Overview({ customer, metrics, summary, accounts, interactions, position
   const fmt = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-GB', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
   const trend = positions.map((row) => ({ date: fmt(row.positionDate), casa: Math.round(row.casaBalance / 1_000_000), fd: Math.round(row.fdBalance / 1_000_000), invest: Math.round((row.bondBalance + row.fundCertValue) / 1_000_000) }));
   const spending = summary ? FLOW_CATEGORIES.map((category) => ({ name: FLOW_LABELS[category][locale], value: Math.round(summary.flows[category].total / 100_000) / 10 })).filter((row) => row.value > 0).sort((a, b) => b.value - a.value).slice(0, 8) : [];
-  return <div className="grid gap-5 lg:grid-cols-3">
+  return <div className="grid gap-5 lg:grid-cols-3 [&>*]:min-w-0">
     {summary && <div className="lg:col-span-3"><PeriodSummaryCard summary={summary} locale={locale} t={t}/></div>}
     {metrics && <div className="lg:col-span-2"><MetricsPanel metrics={metrics} locale={locale} t={t}/></div>}
     <div className="space-y-5">
