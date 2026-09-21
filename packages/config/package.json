@@ -1,0 +1,12 @@
+{
+  "name": "@mlink/config",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "echo config-ready",
+    "lint": "echo config-ready",
+    "typecheck": "echo config-ready",
+    "test": "echo config-ready"
+  }
+}
+

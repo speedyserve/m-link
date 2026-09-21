@@ -1,0 +1,16 @@
+{
+  "name": "mlink-app",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "pnpm --filter @mlink/contracts build && pnpm --parallel --filter @mlink/api --filter @mlink/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm --filter @mlink/contracts build && pnpm -r lint",
+    "typecheck": "pnpm --filter @mlink/contracts build && pnpm -r typecheck",
+    "test": "pnpm --filter @mlink/contracts build && pnpm -r test",
+    "migration:run": "pnpm --filter @mlink/api migration:run",
+    "db:seed": "pnpm --filter @mlink/api db:seed",
+    "db:reset": "pnpm --filter @mlink/api db:reset",
+    "demo:reset": "pnpm db:reset"
+  }
+}

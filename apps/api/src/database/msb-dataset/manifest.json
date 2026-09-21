@@ -1,0 +1,29 @@
+{
+  "source": "Data_mau_365ngay_40KH 2109.xlsx",
+  "asOfDate": "2026-09-18",
+  "firstPositionDate": "2025-09-19",
+  "customers": 40,
+  "dailyPositions": 14600,
+  "holdingCodes": [
+    "ACCOUNT",
+    "CASA",
+    "FD",
+    "LOAN_ADVANCE",
+    "BOND",
+    "CREDIT_CARD",
+    "LOAN_OVERDRAFT",
+    "LOAN_UNSECURED",
+    "LOAN_MORTGAGE",
+    "FX",
+    "BANCA_LIFE",
+    "BANCA_NONLIFE",
+    "FUND_CERT"
+  ],
+  "nextBestOfferCodes": [
+    "CREDIT_CARD",
+    "BANCA",
+    "FX",
+    "BOND",
+    "LOAN"
+  ]
+}

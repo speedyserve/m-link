@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * MSB design tokens. Hex values marked (MSB) are taken from the bank's own theme stylesheets
+ * (wp-content/themes/msb-website/assets/css/child-style.css and style.css); the rest are derived
+ * shades of those two anchors. Navy carries structure, orange carries calls to action.
+ */
+:root {
+  color-scheme: light;
+
+  --navy-900: #1f3357;   /* MSB primary */
+  --navy-800: #2c4268;
+  --navy-700: #3a5279;
+  --navy-500: #647694;   /* MSB secondary text */
+  --navy-200: #c3cfe1;
+  --navy-100: #dee5ef;   /* MSB borders */
+  --navy-50:  #f2f5fa;
+
+  --orange-500: #ea4e24; /* accent call to action */
+  --orange-600: #d5401a; /* accent hover */
+  --orange-bright: #ff6438;
+  --orange-300: #ff9466;
+  --orange-50: #fdeee9;
+
+  --canvas: #f7f8f9;     /* MSB page background */
+  --danger: #ef4444;
+  --success: #157f4d;    /* money movement only, never branding */
+
+  --ink: var(--navy-900);
+  --muted: var(--navy-500);
+  /* Kept darker than --ink: this sits on the orange CTA, where contrast is tightest. */
+  --ink-on-orange: #12253f;
+
+  --radius: 12px;        /* MSB card/button radius */
+  --radius-sm: 8px;
+  --radius-pill: 32px;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, .04);
+  --shadow-orange: 0 6px 18px rgba(234, 78, 36, .28);
+  --sidebar-width: 16rem;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--canvas);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button, input, select { font: inherit; }
+:focus-visible { outline: 2px solid var(--orange-500); outline-offset: 2px; }
+
+/*
+ * Component classes live in Tailwind's components layer so that utility classes written in the
+ * markup (bg-red-50, border-orange-300, !py-2, …) always win over them.
+ */
+@layer components {
+/* ---- Application frame: light sidebar, light top bar --------------------------------------- */
+.sidebar { background: white; color: var(--navy-500); border-right: 1px solid var(--navy-100); }
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .65rem .9rem;
+  border-radius: var(--radius-sm);
+  font-size: .875rem;
+  font-weight: 600;
+  color: var(--navy-500);
+  transition: background .15s, color .15s;
+}
+.nav-link:hover { background: var(--orange-50); color: var(--navy-900); }
+.nav-link[aria-current='page'] { background: var(--orange-50); color: var(--orange-600); box-shadow: inset 3px 0 0 var(--orange-500); }
+.topbar { background: rgba(255, 255, 255, .92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--navy-100); }
+/* Below the lg breakpoint the sidebar is an off-canvas drawer opened from the top bar. */
+@media (max-width: 1023px) {
+  .sidebar { transform: translateX(-100%); transition: transform .2s ease; }
+  .sidebar[data-open='true'] { transform: none; box-shadow: 0 0 40px rgba(9, 30, 66, .35); }
+}
+
+/* ---- Surfaces ------------------------------------------------------------------------------- */
+.card {
+  background: white;
+  border: 1px solid var(--navy-100);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+.card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--navy-100); }
+
+.label {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+/* The CTA label stays on --ink-on-orange; the softer body ink would drop contrast too far. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border: 0;
+  border-radius: var(--radius);
+  padding: .65rem 1rem;
+  background: var(--orange-500);
+  color: var(--ink-on-orange);
+  font-weight: 700;
+  font-size: .875rem;
+  cursor: pointer;
+  transition: .2s;
+}
+.button:hover { background: var(--orange-bright); box-shadow: var(--shadow-orange); transform: translateY(-1px); }
+.button:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+.button.secondary { background: white; color: var(--navy-800); border: 1px solid var(--navy-200); border-radius: var(--radius-pill); }
+.button.secondary:hover { background: var(--navy-50); border-color: var(--navy-500); box-shadow: none; transform: none; }
+.button.pill { border-radius: var(--radius-pill); }
+
+.field {
+  width: 100%;
+  border: 1px solid var(--navy-200);
+  border-radius: var(--radius-sm);
+  padding: .6rem .8rem;
+  background: white;
+  font-size: .875rem;
+  outline: none;
+}
+.field:focus { border-color: var(--orange-500); box-shadow: 0 0 0 3px rgba(234, 78, 36, .18); }
+
+/* ---- Data tables ---------------------------------------------------------------------------- */
+.table-wrap { overflow: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { background: transparent; color: var(--muted); font-size: .72rem; font-weight: 700; text-align: left; text-transform: uppercase; letter-spacing: .05em; }
+th, td { padding: .75rem .75rem; border-bottom: 1px solid var(--navy-100); white-space: nowrap; }
+th { border-bottom-color: var(--navy-200); }
+th:first-child, td:first-child { padding-left: 1.25rem; }
+th:last-child, td:last-child { padding-right: 1.25rem; }
+.data-table tbody tr { transition: background .12s; }
+.data-table tbody tr:hover { background: var(--navy-50); }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.row-link { cursor: pointer; }
+
+/* ---- Tabs and segmented controls ------------------------------------------------------------ */
+.tabs { display: flex; gap: .25rem; overflow-x: auto; border-bottom: 1px solid var(--navy-100); }
+.tab {
+  margin-bottom: -1px;
+  padding: .75rem 1rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: .875rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tab:hover { color: var(--navy-900); }
+.tab[aria-selected='true'] { color: var(--orange-600); border-bottom-color: var(--orange-500); }
+
+.segmented { display: inline-flex; gap: .5rem; padding: 0; border-radius: var(--radius-pill); background: transparent; }
+.segmented button { border: 1px solid var(--navy-200); border-radius: var(--radius-pill); padding: .375rem .9rem; background: white; color: var(--navy-500); font-size: .8125rem; font-weight: 700; cursor: pointer; transition: .15s; }
+.segmented button:hover { color: var(--navy-900); border-color: var(--navy-500); }
+.segmented button[aria-pressed='true'] { background: var(--orange-50); color: var(--orange-600); border-color: var(--orange-500); box-shadow: none; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--navy-50), white, var(--navy-50));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--radius);
+}
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
