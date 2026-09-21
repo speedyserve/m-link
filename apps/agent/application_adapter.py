@@ -33,6 +33,7 @@ from rules import (
     RuleContext,
     RuleHit,
     evaluate,
+    evidence_hint,
     evidence_label,
     format_metric,
     format_period,
@@ -182,12 +183,13 @@ def _recommendation(index: int, hit: RuleHit, ctx: RuleContext, script: str) -> 
         )
         for item in hit.evidence
     ]
-    reasons = [hit.rule.rationale] + [f"{evidence_label(item.field)}: {item.value}" for item in hit.evidence]
+    reasons = [hit.rule.rationale] + [f"{evidence_label(item.field)}: {item.value}{evidence_hint(item.field)}" for item in hit.evidence]
     if len(hit.products) > 1:
         reasons.append("Sản phẩm thay thế: " + "; ".join(p.name for p in hit.products[1:]))
     return MLinkRecommendation(
         priority=index, type=hit.rule.rec_type, title=hit.rule.title,
-        description=(f"{product.summary} {product.rate_or_fee}" if product else hit.rule.rationale).strip(),
+        # "—" in the catalogue means no published rate/fee; don't show it as text.
+        description=(f"{product.summary} {'' if product.rate_or_fee == '—' else product.rate_or_fee}" if product else hit.rule.rationale).strip(),
         confidence=_confidence(hit, ctx),
         product=MLinkProduct(id=product.product_id, name=product.name) if product else None,
         reasons=reasons, evidence=evidence, script=script,

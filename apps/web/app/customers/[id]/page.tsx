@@ -244,11 +244,18 @@ function Deposits({ rows, summary, locale, t }: { rows: Deposit[]; summary: Peri
   return <div className="space-y-4">{rows.map(r=><article className="card overflow-hidden" key={r.id}>
     <div className="flex flex-wrap items-start justify-between gap-4 border-b border-navy-100 p-5">
       <div><div className="label">{locale === 'vi' ? 'Tiền gửi có kỳ hạn' : 'Term deposit'}</div><h2 className="mt-1 text-lg font-extrabold">{r.productName}</h2></div>
-      <Badge tone={r.status === 'ACTIVE' ? 'good' : 'warn'}>{r.status === 'ACTIVE' ? r.status : t('closed')}</Badge>
+      <Badge tone={r.status === 'ACTIVE' ? 'good' : 'warn'}>{r.status === 'ACTIVE' ? t('depositActive') : t('closed')}</Badge>
     </div>
     <div className="grid divide-y divide-navy-100 md:grid-cols-[1.35fr_repeat(3,1fr)] md:divide-x md:divide-y-0">
       <div className="p-5"><div className="label">{locale === 'vi' ? 'Giá trị tiền gửi' : 'Deposit value'}</div><div className="mt-2 text-3xl font-black text-navy-900">{money(r.principal,locale)}</div></div>
-      <div className="p-5"><div className="label">{locale === 'vi' ? 'Lãi suất' : 'Interest rate'}</div><div className="mt-2 text-xl font-black text-orange-600">{r.interestRate ? `${r.interestRate}%` : '—'}</div></div>
+      <div className="p-5">
+        <div className="label">{locale === 'vi' ? 'Lãi suất tiết kiệm' : 'Savings rate'}</div>
+        {r.interestRate ? <>
+          <div className="mt-2 text-xl font-black text-orange-600">{Number(r.interestRate).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-GB', { maximumFractionDigits: 2 })}%<span className="text-sm font-bold text-navy-500">/{locale === 'vi' ? 'năm' : 'yr'}</span></div>
+          <div className="mt-1 text-xs text-navy-500">{locale === 'vi' ? 'Lãi dự kiến/năm' : 'Est. interest/yr'}: <b className="text-success">{money(Number(r.principal) * Number(r.interestRate) / 100, locale)}</b></div>
+          <div className="mt-0.5 text-[11px] text-navy-500">{locale === 'vi' ? 'Tham khảo biểu MSB · kỳ hạn 12 tháng tại quầy' : 'MSB reference · 12-month counter rate'}</div>
+        </> : <div className="mt-2 text-xl font-black text-navy-500">—</div>}
+      </div>
       <div className="p-5"><div className="label">{locale === 'vi' ? 'Ngày mở' : 'Opened'}</div><div className="mt-2 text-sm font-bold">{formatDay(r.startDate, locale)}</div></div>
       <div className="p-5"><div className="label">{locale === 'vi' ? 'Đáo hạn' : 'Maturity'}</div><div className="mt-2 text-sm font-bold">{r.maturityDate ? formatDay(r.maturityDate, locale) : t('noMaturity')}</div></div>
     </div>

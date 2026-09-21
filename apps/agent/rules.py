@@ -316,8 +316,21 @@ EVIDENCE_LABELS: dict[str, str] = {
 }
 
 
+# Plain-language meaning shown after score-type evidence so the RM knows how to read it.
+EVIDENCE_HINTS: dict[str, str] = {
+    "valueScore": "quy mô tổng tài sản của khách so với khách có tài sản lớn nhất danh mục (100 = lớn nhất; càng cao khách càng giá trị)",
+    "churnScore": "càng cao khách càng có nguy cơ rời bỏ ngân hàng",
+    "phs": "số nhóm sản phẩm khách đang dùng trên tổng số nhóm MSB cung cấp",
+}
+
+
 def evidence_label(field_name: str) -> str:
     return EVIDENCE_LABELS.get(field_name, field_name)
+
+
+def evidence_hint(field_name: str) -> str:
+    hint = EVIDENCE_HINTS.get(field_name)
+    return f" — {hint}" if hint else ""
 
 
 def _invest_products(ctx: RuleContext) -> list[str]:

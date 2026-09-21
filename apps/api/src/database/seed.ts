@@ -26,6 +26,9 @@ import { recomputeMetrics } from '../modules/metrics/metrics.service';
 const money = (value: number) => value.toFixed(2);
 const noon = (isoDate: string) => new Date(`${isoDate}T12:00:00.000Z`);
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86_400_000);
+// The workbook carries no deposit rates; use MSB's published reference rate for
+// "Tiết kiệm lãi suất cao nhất", 12 months at the counter (apps/agent/knowledge_base.py).
+const REFERENCE_FD_RATE_PCT = '5.3000';
 
 /** Branch -> RM. RM001 (HCM) is the UI default and owns the southern branches. */
 const RM_BY_BRANCH: Record<string, string> = {
@@ -253,7 +256,7 @@ export async function seedDatabase(): Promise<{ customers: number; positions: nu
       const lastFdDay = [...rows].reverse().find((row) => row.fdBalance > 0)!;
       deposits.push({
         id: `DEP-${cif}`, customerId: cif, productName: 'Tiết kiệm lãi suất cao nhất',
-        principal: money(last.fdBalance > 0 ? last.fdBalance : lastFdDay.fdBalance), interestRate: null,
+        principal: money(last.fdBalance > 0 ? last.fdBalance : lastFdDay.fdBalance), interestRate: REFERENCE_FD_RATE_PCT,
         startDate: firstFd.positionDate, maturityDate: null, status: last.fdBalance > 0 ? 'ACTIVE' : 'CLOSED',
       });
     }
