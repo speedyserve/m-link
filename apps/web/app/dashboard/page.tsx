@@ -118,13 +118,13 @@ export default function DashboardPage() {
         <div className="grid gap-4 lg:grid-cols-3">
         <section className="card flex flex-col">
           <SectionHead icon={Radar} tone="danger" eyebrow="M-Link Radar" title={vi ? 'Phân bổ rủi ro rời bỏ' : 'Churn risk'}/>
-          <div className="min-h-[178px] flex-1 p-4">
+          <div className="h-[178px] p-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={insight.churnData} layout="vertical" margin={{ left: 4, right: 28 }}>
                 <XAxis type="number" hide/>
                 <YAxis type="category" dataKey="name" width={96} fontSize={11} tickLine={false} axisLine={false}/>
                 {barTooltip}
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={22}>
+                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={22} isAnimationActive={false}>
                   {insight.churnData.map((row) => <Cell key={row.key} fill={row.color}/>)}
                   <LabelList dataKey="value" position="right" style={{ fontSize: 12, fontWeight: 800, fill: '#1f3357' }}/>
                 </Bar>
@@ -135,13 +135,13 @@ export default function DashboardPage() {
 
         <section className="card flex flex-col">
           <SectionHead icon={Layers} tone="navy" eyebrow={vi ? 'Danh mục khách hàng' : 'Portfolio'} title={vi ? 'Phân khúc khách hàng' : 'Customer tiers'}/>
-          <div className="min-h-[178px] flex-1 p-4">
+          <div className="h-[178px] p-4">
             {insight.tierData.length ? <ResponsiveContainer width="100%" height="100%">
               <BarChart data={insight.tierData} layout="vertical" margin={{ left: 4, right: 28 }}>
                 <XAxis type="number" hide/>
                 <YAxis type="category" dataKey="name" width={96} fontSize={11} tickLine={false} axisLine={false}/>
                 {barTooltip}
-                <Bar dataKey="value" fill="#ea4e24" radius={[0, 6, 6, 0]} barSize={22}>
+                <Bar dataKey="value" fill="#ea4e24" radius={[0, 6, 6, 0]} barSize={22} isAnimationActive={false}>
                   <LabelList dataKey="value" position="right" style={{ fontSize: 12, fontWeight: 800, fill: '#1f3357' }}/>
                 </Bar>
               </BarChart>

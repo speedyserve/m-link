@@ -32,22 +32,16 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:
   );
 }
 
-/**
- * Warm MSB-style banner: a light amber gradient, so headings stay dark and readable
- * instead of the heavy navy block the dark variant produced.
- */
 export function Hero({ eyebrow, title, accent, description, actions }: { eyebrow: string; title: string; accent?: string; description?: string; actions?: ReactNode }) {
   return (
-    <section className="relative overflow-hidden rounded-xl border border-orange-300 bg-gradient-to-br from-[#fff7ee] via-[#ffe6c9] to-[#ffc287] p-6 md:p-8">
-      <div className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full bg-orange-bright/25 blur-3xl"/>
-      <div className="pointer-events-none absolute -bottom-28 right-24 h-64 w-64 rounded-full bg-white/50 blur-3xl"/>
-      <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+    <section className="workspace-hero">
+      <div className="workspace-hero-content flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[.16em] text-orange-600">{eyebrow}</p>
-          <h1 className="mt-2 text-2xl font-black uppercase leading-tight tracking-tight text-navy-900 md:text-4xl">
-            {title}{accent && <> <span className="text-orange-600">{accent}</span></>}
+          <p className="workspace-hero-eyebrow">{eyebrow}</p>
+          <h1 className="workspace-hero-title">
+            {title}{accent && <> <span className="workspace-hero-accent">{accent}</span></>}
           </h1>
-          {description && <p className="mt-2 max-w-2xl text-sm font-medium text-navy-700">{description}</p>}
+          {description && <p className="workspace-hero-description">{description}</p>}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div>}
       </div>
@@ -57,18 +51,12 @@ export function Hero({ eyebrow, title, accent, description, actions }: { eyebrow
 
 /** KPI tile: soft tinted surface with a light icon chip — brighter than a solid dark chip. */
 export function StatTile({ label, value, icon: Icon, tone = 'navy' }: { label: string; value: ReactNode; icon: LucideIcon; tone?: 'navy' | 'orange' | 'danger' | 'success' }) {
-  const styles = {
-    navy: { surface: 'border-navy-100 bg-white', chip: 'bg-navy-50 text-navy-700 ring-navy-100', value: 'text-navy-900' },
-    orange: { surface: 'border-orange-300/70 bg-orange-50/70', chip: 'bg-white text-orange-600 ring-orange-300/60', value: 'text-orange-600' },
-    danger: { surface: 'border-red-200 bg-red-50/70', chip: 'bg-white text-red-600 ring-red-200', value: 'text-red-600' },
-    success: { surface: 'border-emerald-200 bg-emerald-50/70', chip: 'bg-white text-success ring-emerald-200', value: 'text-success' },
-  }[tone];
   return (
-    <div className={`flex items-center gap-4 rounded-xl border p-5 ${styles.surface}`}>
-      <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ring-1 ${styles.chip}`}><Icon size={22} /></div>
+    <div className={`metric-tile metric-tile--${tone}`}>
+      <div className="metric-tile__icon"><Icon size={21} /></div>
       <div className="min-w-0">
-        <div className={`text-3xl font-black leading-none ${styles.value}`}>{value}</div>
-        <div className="mt-1.5 text-sm font-semibold leading-tight text-navy-500">{label}</div>
+        <div className="metric-tile__value">{value}</div>
+        <div className="metric-tile__label">{label}</div>
       </div>
     </div>
   );
@@ -92,12 +80,16 @@ export function SectionHead({ icon: Icon, eyebrow, title, tone = 'navy', actions
 }
 
 /** Underlined tab bar (the selected tab carries the orange indicator). */
-export function Tabs<T extends string>({ items, value, onChange }: { items: ReadonlyArray<{ id: T; label: string }>; value: T; onChange: (id: T) => void }) {
+export function Tabs<T extends string>({ items, value, onChange }: { items: ReadonlyArray<{ id: T; label: string; icon?: LucideIcon }>; value: T; onChange: (id: T) => void }) {
   return (
     <div className="tabs" role="tablist">
-      {items.map((item) => (
-        <button key={item.id} type="button" role="tab" aria-selected={value === item.id} className="tab" onClick={() => onChange(item.id)}>{item.label}</button>
-      ))}
+      {items.map((item) => {
+        const Icon = item.icon;
+        return <button key={item.id} type="button" role="tab" aria-selected={value === item.id} className="tab" onClick={() => onChange(item.id)}>
+          {Icon && <span className="tab-icon"><Icon size={15}/></span>}
+          {item.label}
+        </button>;
+      })}
     </div>
   );
 }

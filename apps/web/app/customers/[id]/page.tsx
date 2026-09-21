@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AnalysisPeriod, CustomerMetrics, CustomerMetricsAsOf, FlowCategory, PeriodSummary, ProductHolding } from '@mlink/contracts';
 import { FLOW_CATEGORIES } from '@mlink/contracts';
-import { AlertOctagon, AlertTriangle, ArrowLeft, Bot, CheckCircle2, Clock3, CreditCard, Landmark, Lightbulb, MessageSquareText, PieChart, PiggyBank, Sparkles, TrendingUp, Wallet } from 'lucide-react';
+import { AlertOctagon, AlertTriangle, ArrowLeft, ArrowLeftRight, Bot, BrainCircuit, CheckCircle2, Clock3, CreditCard, Landmark, Lightbulb, MessageSquareText, PieChart, PiggyBank, Sparkles, TrendingUp, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -31,8 +31,15 @@ type AnalysisData = {
 };
 type TxFilters = { type: '' | 'CREDIT' | 'DEBIT'; category: '' | FlowCategory; page: number };
 
-const tabs = ['overview', 'transactions', 'cards', 'deposits', 'interactions', 'aiInsights'] as const;
-type Tab = typeof tabs[number];
+const tabs = [
+  { id: 'overview', icon: PieChart },
+  { id: 'transactions', icon: ArrowLeftRight },
+  { id: 'cards', icon: CreditCard },
+  { id: 'deposits', icon: Landmark },
+  { id: 'interactions', icon: MessageSquareText },
+  { id: 'aiInsights', icon: BrainCircuit },
+] as const;
+type Tab = typeof tabs[number]['id'];
 type Locale = 'vi' | 'en';
 type T = ReturnType<typeof useApp>['t'];
 const TX_PAGE_SIZE = 25;
@@ -120,19 +127,19 @@ function CustomerDetail() {
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-2 divide-x divide-y divide-navy-100 md:grid-cols-4 md:divide-y-0">{kpis.map(([label, value], index) => {
+      <div className="grid grid-cols-1 divide-y divide-navy-100 sm:grid-cols-2 sm:divide-x md:grid-cols-4 md:divide-y-0">{kpis.map(([label, value], index) => {
         const chip = ['bg-navy-50 text-navy-800', 'bg-orange-50 text-orange-600', 'bg-emerald-50 text-success', 'bg-red-50 text-red-600'][index] ?? 'bg-navy-50 text-navy-800';
         const Icon = [Wallet, PiggyBank, Landmark, CreditCard][index] ?? Wallet;
-        return <div key={label} className="flex items-center gap-3 p-5">
+        return <div key={label} className="flex min-w-0 items-center gap-3 p-4 md:p-5">
           <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${chip}`}><Icon size={18}/></div>
-          <div className="min-w-0"><div className="label">{label}</div><div className="mt-1 text-xl font-black">{money(value, locale)}</div></div>
+          <div className="min-w-0"><div className="label">{label}</div><div className="mt-1 text-lg font-black sm:text-xl">{money(value, locale)}</div></div>
         </div>;
       })}</div>
     </section>
     {period && dataRange.data && <PeriodFilter period={period} dataRange={dataRange.data} onChange={setPeriod} locale={locale} t={t}/>}
     {asOf?.insufficientHistory && <div className="card flex items-center gap-2 border-orange-300 bg-orange-50 p-3 text-sm text-orange-600"><AlertTriangle size={16}/>{t('insufficientHistory')}</div>}
     {analyze.isPending && <Analyzing locale={locale}/>} {analyze.isError && <ErrorBox message={analyze.error.message}/>}
-    <Tabs items={tabs.map((item) => ({ id: item, label: t(item) }))} value={tab} onChange={setTab}/>
+    <Tabs items={tabs.map((item) => ({ ...item, label: t(item.id) }))} value={tab} onChange={setTab}/>
     {tab === 'overview' && <Overview customer={c} metrics={m} summary={summary.data} accounts={accounts.data ?? []} interactions={interactionsInPeriod} positions={positions.data ?? []} period={period} locale={locale} t={t}/>}
     {tab === 'transactions' && <Transactions page={transactions.data} filters={txFilters} onChange={setTxFilters} loading={transactions.isLoading} locale={locale} t={t}/>}
     {tab === 'cards' && <Cards rows={cards.data ?? []} summary={summary.data} locale={locale} t={t}/>}
@@ -217,12 +224,37 @@ function Transactions({ page, filters, onChange, loading, locale, t }: { page: P
 
 function Cards({ rows, summary, locale, t }: { rows: Card[]; summary: PeriodSummary | undefined; locale: Locale; t: T }) {
   if(!rows.length) return <Empty message={t('empty')}/>;
-  return <div className="grid gap-4 md:grid-cols-2">{rows.map(r=><div key={r.id} className="space-y-3"><div className="card bg-gradient-to-br from-navy-900 to-navy-700 p-6 text-white"><div className="text-sm text-white/70">MSB {r.type}</div><div className="my-8 font-mono text-xl tracking-wider">{r.maskedNumber}</div><div className="flex justify-between"><div><div className="text-xs text-white/70">LIMIT</div><b>{money(r.creditLimit,locale)}</b></div><div><div className="text-xs text-white/70">AVAILABLE</div><b>{money(r.availableLimit,locale)}</b></div><div><div className="text-xs text-white/70">EXPIRY</div><b>{r.expiryDate}</b></div></div></div>{summary && <div className="card grid grid-cols-2 gap-3 p-4 text-sm"><div><div className="label">{t('cardSpendInPeriod')}</div><div className="font-bold">{money(summary.flows.CC_SPEND.total, locale)}</div><div className="text-xs text-navy-500">{summary.flows.CC_SPEND.days} {t('daysWithActivity').toLowerCase()}</div></div><div><div className="label">{t('avgBalanceInPeriod')}</div><div className="font-bold">{money(summary.balances.creditCardBalance.avg, locale)}</div><div className="text-xs text-navy-500">{t('closingBalance')}: {money(summary.balances.creditCardBalance.end, locale)}</div></div></div>}</div>)}</div>;
+  return <section className="card overflow-hidden">
+    <div className="card-head"><div><p className="label">{locale === 'vi' ? 'Sản phẩm đang sở hữu' : 'Products held'}</p><h2 className="mt-0.5 text-base font-extrabold">{t('cards')}</h2></div><span className="text-sm font-bold text-navy-500">{rows.length} {locale === 'vi' ? 'thẻ' : 'cards'}</span></div>
+    {summary && <div className="grid border-b border-navy-100 bg-navy-50/70 sm:grid-cols-2">
+      <div className="flex items-center gap-3 p-4 sm:border-r sm:border-navy-100"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-orange-600"><CreditCard size={18}/></div><div><div className="label">{t('cardSpendInPeriod')}</div><div className="mt-1 text-lg font-black text-navy-900">{money(summary.flows.CC_SPEND.total, locale)}</div></div></div>
+      <div className="flex items-center gap-3 p-4"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-navy-700"><TrendingUp size={18}/></div><div><div className="label">{locale === 'vi' ? 'Hoạt động trong kỳ' : 'Activity in period'}</div><div className="mt-1 text-lg font-black text-navy-900">{summary.flows.CC_SPEND.days} <span className="text-sm font-bold text-navy-500">{t('daysWithActivity').toLowerCase()}</span></div></div></div>
+    </div>}
+    <div className="grid divide-y divide-navy-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+      {rows.map((r) => <div key={r.id} className="flex min-w-0 items-center gap-4 p-5">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-navy-50 text-navy-800"><CreditCard size={20}/></div>
+        <div className="min-w-0"><div className="label">{locale === 'vi' ? 'Thẻ đang sử dụng' : 'Active card'}</div><h3 className="mt-1 truncate text-base font-extrabold">MSB {r.type.replaceAll('_', ' ')}</h3></div>
+        <Badge tone={r.status === 'ACTIVE' ? 'good' : 'warn'}>{r.status === 'ACTIVE' ? (locale === 'vi' ? 'Đang hoạt động' : 'Active') : t('closed')}</Badge>
+      </div>)}
+    </div>
+  </section>;
 }
 
 function Deposits({ rows, summary, locale, t }: { rows: Deposit[]; summary: PeriodSummary | undefined; locale: Locale; t: T }) {
   if(!rows.length) return <Empty message={t('empty')}/>;
-  return <div className="grid gap-4 md:grid-cols-2">{rows.map(r=><div className="card p-5" key={r.id}><div className="flex justify-between"><h3 className="font-extrabold">{r.productName}</h3><Badge tone={r.status === 'ACTIVE' ? 'good' : 'warn'}>{r.status === 'ACTIVE' ? r.status : t('closed')}</Badge></div><div className="mt-5 text-2xl font-black">{money(r.principal,locale)}</div><div className="mt-3 flex justify-between text-sm text-navy-500"><span>{r.interestRate ? `${r.interestRate}%` : r.startDate}</span><span>{r.maturityDate ?? t('noMaturity')}</span></div>{summary && <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-navy-100 pt-3 text-sm">{[[t('openingBalance'), summary.balances.fdBalance.start],[t('closingBalance'), summary.balances.fdBalance.end],[t('averageBalance'), summary.balances.fdBalance.avg]].map(([label, value]) => <div key={label as string}><dt className="text-xs text-navy-500">{label}</dt><dd className="font-bold">{money(value as number, locale)}</dd></div>)}</dl>}</div>)}</div>;
+  return <div className="space-y-4">{rows.map(r=><article className="card overflow-hidden" key={r.id}>
+    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-navy-100 p-5">
+      <div><div className="label">{locale === 'vi' ? 'Tiền gửi có kỳ hạn' : 'Term deposit'}</div><h2 className="mt-1 text-lg font-extrabold">{r.productName}</h2></div>
+      <Badge tone={r.status === 'ACTIVE' ? 'good' : 'warn'}>{r.status === 'ACTIVE' ? r.status : t('closed')}</Badge>
+    </div>
+    <div className="grid divide-y divide-navy-100 md:grid-cols-[1.35fr_repeat(3,1fr)] md:divide-x md:divide-y-0">
+      <div className="p-5"><div className="label">{locale === 'vi' ? 'Giá trị tiền gửi' : 'Deposit value'}</div><div className="mt-2 text-3xl font-black text-navy-900">{money(r.principal,locale)}</div></div>
+      <div className="p-5"><div className="label">{locale === 'vi' ? 'Lãi suất' : 'Interest rate'}</div><div className="mt-2 text-xl font-black text-orange-600">{r.interestRate ? `${r.interestRate}%` : '—'}</div></div>
+      <div className="p-5"><div className="label">{locale === 'vi' ? 'Ngày mở' : 'Opened'}</div><div className="mt-2 text-sm font-bold">{formatDay(r.startDate, locale)}</div></div>
+      <div className="p-5"><div className="label">{locale === 'vi' ? 'Đáo hạn' : 'Maturity'}</div><div className="mt-2 text-sm font-bold">{r.maturityDate ? formatDay(r.maturityDate, locale) : t('noMaturity')}</div></div>
+    </div>
+    {summary && <dl className="grid divide-y divide-navy-100 border-t border-navy-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">{[[t('openingBalance'), summary.balances.fdBalance.start],[t('closingBalance'), summary.balances.fdBalance.end],[t('averageBalance'), summary.balances.fdBalance.avg]].map(([label, value]) => <div key={label as string} className="p-4"><dt className="label">{label}</dt><dd className="mt-1 font-bold">{money(value as number, locale)}</dd></div>)}</dl>}
+  </article>)}</div>;
 }
 
 function Interactions({ rows, empty }: { rows:Interaction[]; empty:string }) { if(!rows.length)return <Empty message={empty}/>; return <div className="space-y-3">{rows.map(r=><div className="card flex gap-4 p-5" key={r.id}><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-navy-50"><MessageSquareText size={18}/></div><div className="flex-1"><div className="flex flex-wrap justify-between gap-2"><h3 className="font-extrabold">{r.subject}</h3><Badge tone={r.sentiment==='NEGATIVE'?'danger':r.sentiment==='POSITIVE'?'good':'neutral'}>{r.sentiment}</Badge></div><p className="mt-1 text-sm text-navy-500">{r.summary}</p><div className="mt-2 text-xs text-navy-500">{r.channel} · {new Date(r.interactionAt).toLocaleString()} · {r.status}</div></div></div>)}</div>; }

@@ -67,15 +67,15 @@ function Shell({ children }: { children: React.ReactNode }) {
       {menuOpen && <button type="button" aria-label="Close menu" className="fixed inset-0 z-30 bg-navy-900/50 lg:hidden" onClick={() => setMenuOpen(false)}/>}
       <header className="topbar sticky top-0 z-20 flex h-20 items-center gap-3 px-4 lg:px-8">
         <button type="button" className="button secondary !px-2.5 lg:hidden" aria-label="Open menu" onClick={() => setMenuOpen(true)}><Menu size={18}/></button>
-        <div className="min-w-0 truncate text-xl font-black uppercase tracking-tight text-orange-600 md:text-2xl">{pageTitle}</div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="hidden min-w-0 truncate text-xl font-black uppercase tracking-tight text-orange-600 sm:block md:text-2xl">{pageTitle}</div>
+        <div className="ml-auto flex min-w-0 items-center gap-2">
           <Link href="/dashboard" aria-label={`${t('needAttention')}: ${alerts}`}
             className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-navy-200 bg-white text-navy-800 transition hover:bg-navy-50">
             <Bell size={18}/>
             {alerts > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-danger px-1 text-[11px] font-black text-white">{alerts > 99 ? '99+' : alerts}</span>}
           </Link>
-          <select aria-label="Relationship manager" className="field !w-auto min-w-0 max-w-[15rem] sm:max-w-[19rem]" value={rmId} onChange={(event) => setRmId(event.target.value)}>{rms.data?.map((rm) => <option key={rm.id} value={rm.id}>{rm.name} · {rm.branch}</option>) ?? <option value="RM001">RM001</option>}</select>
-          <button type="button" aria-label="Change language" className="button secondary !px-3" onClick={() => setLocale(locale === 'vi' ? 'en' : 'vi')}><Languages size={16}/>{locale.toUpperCase()}</button>
+          <select aria-label="Relationship manager" className="field !w-36 shrink min-w-0 sm:!w-auto sm:max-w-[19rem]" value={rmId} onChange={(event) => setRmId(event.target.value)}>{rms.data?.map((rm) => <option key={rm.id} value={rm.id}>{rm.name} · {rm.branch}</option>) ?? <option value="RM001">RM001</option>}</select>
+          <button type="button" aria-label="Change language" className="button secondary shrink-0 !px-3" onClick={() => setLocale(locale === 'vi' ? 'en' : 'vi')}><Languages size={16}/><span className="hidden min-[420px]:inline">{locale.toUpperCase()}</span></button>
         </div>
       </header>
       <main className="mx-auto max-w-[1800px] space-y-5 px-4 py-6 lg:px-8">{children}</main>
