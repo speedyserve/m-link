@@ -10,7 +10,7 @@ The repository is a pnpm monorepo. It is ready for local development, an API Doc
 | --- | --- |
 | `apps/web` | Next.js Customer 360 UI at port `3000` |
 | `apps/api` | NestJS API, PostgreSQL migrations, seed data, Swagger at port `4000` |
-| `apps/agent` | Python FastAPI analysis service at port `8081` |
+| `apps/agent` | Python FastAPI analysis service at port `8080` |
 | `packages/contracts` | Shared Zod request/response schemas |
 | `packages/ui` | Shared UI package placeholder |
 | `docs` | Architecture, API, Agent contract, data model, and demo scenarios |
@@ -100,7 +100,7 @@ Configure `apps/api/.env` to use the local Agent:
 
 ```dotenv
 AGENT_PROVIDER=greennode
-AGENT_BASE_URL=http://localhost:8081
+AGENT_BASE_URL=http://localhost:8080
 AGENT_API_KEY=<random-local-agent-key>
 INTERNAL_AGENT_TOKEN=<random-local-internal-token>
 ```
@@ -126,8 +126,8 @@ Create the Python environment and start the Agent:
 cd apps/agent
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-python -m uvicorn main:app --host 0.0.0.0 --port 8081 --reload
+pip install -r requirements-dev.txt
+python -m uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 Restart `pnpm dev` after changing `apps/api/.env`. The Agent must also be restarted after changing `apps/agent/.env`.
@@ -136,7 +136,7 @@ Restart `pnpm dev` after changing `apps/api/.env`. The Agent must also be restar
 > change keeps answering with the old logic — for example ignoring the analysed period and replying
 > with the default 90-day snapshot for every window. The API detects that case: the analysis then
 > reports `periodApplied: false` and the UI shows "the Agent ignored the selected period". Also make
-> sure only one Agent process is listening on the port (`lsof -nP -iTCP:8081 -sTCP:LISTEN`); a second
+> sure only one Agent process is listening on the port (`lsof -nP -iTCP:8080 -sTCP:LISTEN`); a second
 > one bound to a different interface can shadow the one you just started.
 
 ### Optional: enable GreenNode LLM content generation

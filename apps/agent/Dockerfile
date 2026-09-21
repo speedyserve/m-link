@@ -11,5 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . ./
 
-# GreenNode can inject PORT at runtime. Keep 8081 as the local/default port.
-CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8081}"]
+RUN useradd --create-home --uid 1000 agent
+USER agent
+
+EXPOSE 8080
+
+# GreenNode AgentBase routes all traffic to 8080 and injects PORT at runtime.
+CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
