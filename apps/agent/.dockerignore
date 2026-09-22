@@ -9,3 +9,9 @@ Dockerfile
 dist
 build
 *.egg-info
+.env*
+!.env.example
+.greennode.json
+.agentbase
+tests
+.agentbase/
