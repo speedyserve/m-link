@@ -253,11 +253,24 @@ Agent and API must be deployed on a private network or otherwise protect the Age
 
 ### Railway (API) and Vercel (web)
 
-Railway builds `apps/api/Dockerfile` from the repository root; `railway.json` pins the pre-deploy
-migration, the `/health/ready` probe, and the start command. Railway injects `PORT`, so leave it
-unset and point `DATABASE_URL` at the Postgres plugin. Keep `AGENT_PROVIDER=mock` until the Agent is
-deployed — `AGENT_BASE_URL` is read only by `GreenNodeAgentClient`, so a placeholder value is inert
-while the mock client is selected.
+Railway builds `apps/api/Dockerfile` from the repository root. **Select that Dockerfile with the
+`RAILWAY_DOCKERFILE_PATH=apps/api/Dockerfile` service variable, not with `railway.json`.** Railway
+has deprecated config as code and its Railpack builder ignores the file: it auto-detects the pnpm
+workspace, finds no start command and fails the build with `railpack prepare exited with an error`.
+The start command then comes from the image `CMD`.
+
+`preDeployCommand` in `railway.json` does not run either, so migrations are a manual step after a
+schema change — see below. Railway injects `PORT`, so leave it unset and point `DATABASE_URL` at the
+Postgres plugin. Keep `AGENT_PROVIDER=mock` until the Agent is deployed; `AGENT_BASE_URL` is read
+only by `GreenNodeAgentClient`, so a placeholder value is inert while the mock client is selected.
+Switching to `greennode` requires `AGENT_BASE_URL` **and** `AGENT_API_KEY` — the client rejects every
+request with `AGENT_CONFIGURATION_ERROR` when either is missing.
+
+Run migrations and one-off scripts inside the deployed container:
+
+```bash
+railway ssh "node apps/api/dist/database/run-migrations.js"
+```
 
 The production image carries `dist/database/seed.js` together with the `msb-dataset` JSON, so the
 demo dataset loads through a one-off platform command instead of exposing the database publicly:
