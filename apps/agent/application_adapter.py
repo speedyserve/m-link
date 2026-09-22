@@ -39,7 +39,7 @@ from rules import (
     format_period,
 )
 
-CARE_FIRST_REASON = "Open complaint and repeated negative customer contacts"
+CARE_FIRST_REASON = "Khách đang có khiếu nại chưa xử lý và nhiều lần phản hồi tiêu cực: cần giải quyết khiếu nại, chăm sóc khách trước khi giới thiệu sản phẩm."
 
 
 def _open_complaints(interactions: list[dict]) -> list[dict]:
@@ -214,9 +214,9 @@ def to_mlink_response(request: MLinkAnalyzeRequest, context: CustomerContext) ->
         return MLinkAnalysisResponse(
             runId=run_id, customerId=request.customerId, period=period,
             summary=MLinkSummary(relationshipStatus="customer_care_first", opportunityScore=0,
-                                 overview="Resolve the open complaint before any product conversation."),
-            signals=[MLinkSignal(type="open_complaint", title="Open customer complaint", severity="high", confidence=0.99,
-                                 description=str(complaint.get("summary") or complaint.get("subject") or "Customer service issue requires resolution."))],
+                                 overview="Giải quyết khiếu nại đang mở trước khi trao đổi về bất kỳ sản phẩm nào."),
+            signals=[MLinkSignal(type="open_complaint", title="Khiếu nại đang mở", severity="high", confidence=0.99,
+                                 description=str(complaint.get("summary") or complaint.get("subject") or "Vấn đề dịch vụ cần được xử lý."))],
             recommendations=[],
             guardrail=MLinkGuardrail(sellAllowed=False, reason=CARE_FIRST_REASON),
         )

@@ -12,6 +12,7 @@ import { HoldingMatrix, MetricsPanel, churnText, churnTone } from '@/components/
 import { PeriodFilter, formatDay, usePeriod, type DataRange, type Period } from '@/components/period-filter';
 import { FLOW_LABELS, PeriodSummaryCard } from '@/components/period-summary';
 import { useApp } from '@/components/providers';
+import { messages, type MessageKey } from '@/lib/i18n';
 import { Avatar, Badge, Empty, ErrorBox, Tabs } from '@/components/ui';
 import { api, money } from '@/lib/api';
 
@@ -30,6 +31,14 @@ type AnalysisData = {
   recommendations: Array<{ id: string; priority: number; title: string; description: string; confidence: number; product: { id: string; name: string } | null; reasons: string[]; script: string; evidence: Array<{ id: string; title: string; description: string; sourceReference: string | null }> }>;
 };
 type TxFilters = { type: '' | 'CREDIT' | 'DEBIT'; category: '' | FlowCategory; page: number };
+
+// Agent status codes → RM-facing labels.
+const RELATIONSHIP_STATUS: Record<string, Record<'vi' | 'en', string>> = {
+  at_risk: { vi: 'Có nguy cơ rời bỏ', en: 'At risk' },
+  opportunity: { vi: 'Có cơ hội bán thêm', en: 'Opportunity' },
+  healthy: { vi: 'Quan hệ ổn định', en: 'Healthy' },
+  customer_care_first: { vi: 'Ưu tiên chăm sóc khách hàng', en: 'Customer care first' },
+};
 
 const tabs = [
   { id: 'overview', icon: PieChart },
@@ -143,7 +152,7 @@ function CustomerDetail() {
     {tab === 'transactions' && <Transactions page={transactions.data} filters={txFilters} onChange={setTxFilters} loading={transactions.isLoading} locale={locale} t={t}/>}
     {tab === 'cards' && <Cards rows={cards.data ?? []} summary={summary.data} locale={locale} t={t}/>}
     {tab === 'deposits' && <Deposits rows={deposits.data ?? []} summary={summary.data} locale={locale} t={t}/>}
-    {tab === 'interactions' && <Interactions rows={interactionsInPeriod} empty={t('empty')}/>}
+    {tab === 'interactions' && <Interactions rows={interactionsInPeriod} empty={t('empty')} locale={locale} t={t}/>}
     {tab === 'aiInsights' && <AiInsights data={analysis.data} histories={history.data ?? []} selected={selectedAnalysis} onSelect={setSelectedAnalysis} period={period} onReanalyze={() => analyze.mutate()} reanalyzing={analyze.isPending} locale={locale} t={t} rmId={rmId}/>}
   </>;
 }
@@ -263,7 +272,9 @@ function Deposits({ rows, summary, locale, t }: { rows: Deposit[]; summary: Peri
   </article>)}</div>;
 }
 
-function Interactions({ rows, empty }: { rows:Interaction[]; empty:string }) { if(!rows.length)return <Empty message={empty}/>; return <div className="space-y-3">{rows.map(r=><div className="card flex gap-4 p-5" key={r.id}><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-navy-50"><MessageSquareText size={18}/></div><div className="flex-1"><div className="flex flex-wrap justify-between gap-2"><h3 className="font-extrabold">{r.subject}</h3><Badge tone={r.sentiment==='NEGATIVE'?'danger':r.sentiment==='POSITIVE'?'good':'neutral'}>{r.sentiment}</Badge></div><p className="mt-1 text-sm text-navy-500">{r.summary}</p><div className="mt-2 text-xs text-navy-500">{r.channel} · {new Date(r.interactionAt).toLocaleString()} · {r.status}</div></div></div>)}</div>; }
+// Enum value → i18n key (e.g. sentiment POSITIVE → sentimentPositive); unknown values fall back to the raw code.
+function label(t: T, prefix: string, value: string) { const key = `${prefix}${value.charAt(0)}${value.slice(1).toLowerCase()}`; return key in messages.vi ? t(key as MessageKey) : value; }
+function Interactions({ rows, empty, locale, t }: { rows:Interaction[]; empty:string; locale: Locale; t: T }) { if(!rows.length)return <Empty message={empty}/>; return <div className="space-y-3">{rows.map(r=><div className="card flex gap-4 p-5" key={r.id}><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-navy-50"><MessageSquareText size={18}/></div><div className="flex-1"><div className="flex flex-wrap justify-between gap-2"><h3 className="font-extrabold">{r.subject}</h3><Badge tone={r.sentiment==='NEGATIVE'?'danger':r.sentiment==='POSITIVE'?'good':'neutral'}>{label(t,'sentiment',r.sentiment)}</Badge></div><p className="mt-1 text-sm text-navy-500">{r.summary}</p><div className="mt-2 text-xs text-navy-500">{label(t,'channel',r.channel)} · {new Date(r.interactionAt).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-GB')} · {label(t,'status',r.status)}</div></div></div>)}</div>; }
 
 function AiInsights({ data, histories, selected, onSelect, period, onReanalyze, reanalyzing, locale, t, rmId }: { data: AnalysisData|undefined; histories: History[]; selected:string|null; onSelect:(id:string)=>void; period: Period|null; onReanalyze:()=>void; reanalyzing:boolean; locale: Locale; t: T; rmId:string }) {
   const client=useQueryClient();
@@ -290,7 +301,7 @@ function AiInsights({ data, histories, selected, onSelect, period, onReanalyze, 
     </div>
     {care&&<div className="card border-red-300 bg-red-50 p-6"><div className="flex items-center gap-3 text-red-800"><AlertOctagon size={28}/><div><div className="label !text-red-700">{t('careFirst')}</div><h2 className="text-2xl font-black">{t('doNotSell')}</h2></div></div><p className="mt-4 font-semibold text-red-900">{analysis.guardrail.reason}</p></div>}
     {noAction&&<div className="card border-emerald-200 bg-emerald-50/70 p-6"><div className="flex items-center gap-3 text-success"><CheckCircle2 size={28}/><h2 className="text-2xl font-black">{t('noAction')}</h2></div><p className="mt-3 text-navy-500">{analysis.summary.overview}</p><p className="mt-2 font-bold">{t('doNotDisturb')}</p></div>}
-    <div className="card p-6"><div className="flex items-start justify-between gap-4"><div><div className="label">{t('summary')}</div><h2 className="mt-2 text-xl font-extrabold capitalize">{analysis.summary.relationshipStatus.replaceAll('_',' ')}</h2></div><div className="grid h-16 w-16 place-items-center rounded-full bg-orange-50 text-xl font-black text-orange-600">{Math.round(analysis.summary.opportunityScore)}</div></div><p className="mt-4 text-navy-500">{analysis.summary.overview}</p></div>
+    <div className="card p-6"><div className="flex items-start justify-between gap-4"><div><div className="label">{t('summary')}</div><h2 className="mt-2 text-xl font-extrabold">{RELATIONSHIP_STATUS[analysis.summary.relationshipStatus]?.[locale] ?? analysis.summary.relationshipStatus.replaceAll('_',' ')}</h2></div><div className="grid h-16 w-16 place-items-center rounded-full bg-orange-50 text-xl font-black text-orange-600">{Math.round(analysis.summary.opportunityScore)}</div></div><p className="mt-4 text-navy-500">{analysis.summary.overview}</p></div>
     {!!analysis.signals.length&&<div className="card p-6"><h2 className="font-extrabold">{t('signals')}</h2><div className="mt-4 grid gap-3 md:grid-cols-2">{analysis.signals.map(s=><div key={s.type} className="rounded-xl border border-navy-100 p-4"><div className="flex justify-between"><b>{s.title}</b><Badge tone={s.severity==='high'?'danger':s.severity==='medium'?'warn':'neutral'}>{s.severity.toUpperCase()}</Badge></div><p className="mt-2 text-sm text-navy-500">{s.description}</p><div className="mt-3 text-xs font-bold text-navy-800">{Math.round(s.confidence*100)}% {t('confidence').toLowerCase()}</div></div>)}</div></div>}
     {data.recommendations.map(rec=><div className="card overflow-hidden" key={rec.id}><div className="border-b border-navy-100 bg-orange-50 p-5"><div className="label">#{rec.priority} · {t('nextBestAction')}</div><h2 className="mt-2 text-xl font-black">{rec.title}</h2><div className="mt-2 flex gap-2"><Badge tone="good">{Math.round(rec.confidence*100)}% {t('confidence')}</Badge>{rec.product&&<Badge>{rec.product.name}</Badge>}</div></div><div className="space-y-5 p-5"><p className="text-navy-500">{rec.description}</p><div><h3 className="flex items-center gap-2 font-extrabold"><Lightbulb size={17}/>{t('why')}</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-navy-500">{rec.reasons.map(reason=><li key={reason}>{reason}</li>)}</ul></div><details className="rounded-xl border border-navy-100 p-4"><summary className="cursor-pointer font-bold">{t('evidence')}</summary><div className="mt-3 space-y-3">{rec.evidence.map(e=><div key={e.id}><b className="text-sm">{e.title}</b><p className="text-sm text-navy-500">{e.description}</p></div>)}</div></details><div className="flex flex-wrap gap-2 border-t border-navy-100 pt-4">{[[t('useful'),'CONTACTED',true],[t('notRelevant'),'NOT_RELEVANT',false],[t('contacted'),'CONTACTED',null],[t('interested'),'INTERESTED',true],[t('rejected'),'REJECTED',null]].map(([label,status,useful],index)=><button disabled={feedback.isPending} onClick={()=>feedback.mutate({id:rec.id,status:status as string,useful:useful as boolean|null})} className="button secondary !py-2 text-sm" key={`${status}-${index}`}>{label as string}</button>)}</div></div></div>)}
   </div><aside className="card h-fit p-5"><h2 className="flex items-center gap-2 font-extrabold"><Clock3 size={18}/>{t('history')}</h2><div className="mt-4 space-y-2">{histories.map(h=>{const meta=statusMeta[h.status]??{tone:'neutral' as const,label:h.status};return <button key={h.id} onClick={()=>onSelect(h.id)} className={`w-full rounded-xl border p-3 text-left transition ${selected===h.id?'border-orange-500 bg-orange-50':'border-navy-100 hover:bg-navy-50'}`}><div className="flex items-center justify-between gap-2"><Badge tone={meta.tone}>{meta.label}</Badge><span className="text-xs text-navy-500">{formatDateTime(h.createdAt)}</span></div><div className="mt-2 text-sm font-bold text-navy-900">{periodText(h.period)}</div>{h.latencyMs!=null&&<div className="mt-1 text-xs text-navy-500">{t('processingTime')}: {(h.latencyMs/1000).toFixed(1)}s</div>}</button>;})}</div></aside></div>;
