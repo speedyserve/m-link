@@ -220,3 +220,145 @@ def test_card_spend_high_in_period_needs_a_month_of_data():
         period_summary=make_period_summary(days=7, active_days=6, card_spend=47_000_000, card_spend_days=3),
     ))
     assert "CARD_SPEND_HIGH_IN_PERIOD" not in codes(evaluate(ctx))
+
+
+def test_securities_active_in_period_offers_fund_cert_or_bond():
+    ctx = _ctx(make_context(
+        make_metrics(riskAppetiteLabel="Rủi ro cao"),
+        period_summary=make_period_summary(securities_total=61_000_000, securities_days=6),
+    ))
+    hits = evaluate(ctx)
+    hit = next(h for h in hits if h.rule.code == "SECURITIES_ACTIVE_IN_PERIOD")
+    assert hit.primary_product.product_id == "INV_FUND_CERT_RB"
+    assert any(product.product_id == "BANCA_PRU_INVEST" for product in hit.products)
+
+
+def test_securities_active_in_period_does_not_fire_below_the_frequency_threshold():
+    ctx = _ctx(make_context(
+        make_metrics(),
+        period_summary=make_period_summary(securities_total=12_000_000, securities_days=2),
+    ))
+    assert "SECURITIES_ACTIVE_IN_PERIOD" not in codes(evaluate(ctx))
+
+
+def test_flight_active_in_period_offers_world_elite_for_aff_tier():
+    ctx = _ctx(make_context(
+        make_metrics(tierLabel="Aff"),
+        period_summary=make_period_summary(flight_total=15_000_000, flight_days=4),
+        customer={"tier": "Aff"},
+    ))
+    hits = evaluate(ctx)
+    hit = next(h for h in hits if h.rule.code == "FLIGHT_ACTIVE_IN_PERIOD")
+    assert hit.primary_product.product_id == "CARD_MC_WORLD_ELITE"
+
+
+def test_flight_active_in_period_does_not_fire_below_the_frequency_threshold():
+    ctx = _ctx(make_context(
+        make_metrics(),
+        period_summary=make_period_summary(flight_total=3_000_000, flight_days=1),
+    ))
+    assert "FLIGHT_ACTIVE_IN_PERIOD" not in codes(evaluate(ctx))
+
+
+def test_health_protection_gap_offers_flexcare_to_affluent_customers_without_banca():
+    ctx = _ctx(make_context(make_metrics(tierLabel="Aff"), customer={"dateOfBirth": "1980-01-01"}))
+    hits = evaluate(ctx)
+    hit = next(h for h in hits if h.rule.code == "HEALTH_PROTECTION_GAP")
+    assert hit.primary_product.product_id == "BANCA_M_FLEXCARE"
+
+
+def test_health_protection_gap_offers_mass_products_to_mass_customers_without_banca():
+    ctx = _ctx(make_context(make_metrics(tierLabel="Mass"), customer={"dateOfBirth": "1980-01-01"}))
+    hits = evaluate(ctx)
+    hit = next(h for h in hits if h.rule.code == "HEALTH_PROTECTION_GAP")
+    assert {p.product_id for p in hit.products} == {"BANCA_HOSPITAL_CASH", "BANCA_CRITICAL_ILLNESS"}
+
+
+def test_health_protection_gap_does_not_fire_under_the_age_floor():
+    ctx = _ctx(make_context(make_metrics(), customer={"dateOfBirth": "2005-01-01"}))
+    assert "HEALTH_PROTECTION_GAP" not in codes(evaluate(ctx))
+
+
+def test_health_protection_gap_does_not_fire_when_already_covered():
+    ctx = _ctx(make_context(make_metrics(), holdings={"BANCA_LIFE": True}, customer={"dateOfBirth": "1980-01-01"}))
+    assert "HEALTH_PROTECTION_GAP" not in codes(evaluate(ctx))
+
+
+def test_property_insurance_gap_fires_for_an_uninsured_mortgage():
+    ctx = _ctx(make_context(make_metrics(), holdings={"LOAN_MORTGAGE": True}))
+    hits = evaluate(ctx)
+    hit = next(h for h in hits if h.rule.code == "PROPERTY_INSURANCE_GAP")
+    assert hit.primary_product.product_id == "BANCA_APARTMENT"
+
+
+def test_property_insurance_gap_does_not_fire_without_a_mortgage():
+    ctx = _ctx(make_context(make_metrics()))
+    assert "PROPERTY_INSURANCE_GAP" not in codes(evaluate(ctx))
+
+
+def test_home_loan_prospect_fires_for_a_high_value_affluent_customer_without_a_mortgage():
+    ctx = _ctx(make_context(make_metrics(tierLabel="Aff", leverage=0.1, valueScore=60)))
+    hits = evaluate(ctx)
+    hit = next(h for h in hits if h.rule.code == "HOME_LOAN_PROSPECT")
+    assert hit.primary_product.product_id == "LOAN_HOME_PROJECT"
+
+
+def test_home_loan_prospect_does_not_fire_for_mass_tier():
+    ctx = _ctx(make_context(make_metrics(tierLabel="Mass", leverage=0.1, valueScore=60)))
+    assert "HOME_LOAN_PROSPECT" not in codes(evaluate(ctx))
+
+
+def test_consumer_loan_prospect_fires_for_a_loan_free_customer_with_stable_casa():
+    ctx = _ctx(make_context(make_metrics(leverage=0.0, casaTrend=0.02, freq90=50)))
+    hits = evaluate(ctx)
+    hit = next(h for h in hits if h.rule.code == "CONSUMER_LOAN_PROSPECT")
+    assert hit.primary_product.product_id == "LOAN_CONSUMER"
+
+
+def test_consumer_loan_prospect_does_not_fire_when_casa_is_declining():
+    ctx = _ctx(make_context(make_metrics(leverage=0.0, casaTrend=-0.05, freq90=50)))
+    assert "CONSUMER_LOAN_PROSPECT" not in codes(evaluate(ctx))
+
+
+def test_family_card_prospect_fires_on_the_behaviour_note_keyword():
+    ctx = _ctx(make_context(make_metrics(), customer={"behaviourNote": "Chi tiêu chăm sóc gia đình đều đặn"}))
+    hits = evaluate(ctx)
+    hit = next(h for h in hits if h.rule.code == "FAMILY_CARD_PROSPECT")
+    assert hit.primary_product.product_id == "CARD_MC_FAMILY"
+
+
+def test_family_card_prospect_does_not_fire_without_the_keyword():
+    ctx = _ctx(make_context(make_metrics()))
+    assert "FAMILY_CARD_PROSPECT" not in codes(evaluate(ctx))
+
+
+def test_starter_card_prospect_fires_for_a_very_active_mass_customer_without_a_card():
+    ctx = _ctx(make_context(make_metrics(tierLabel="Mass", freq90=200)))
+    hits = evaluate(ctx)
+    hit = next(h for h in hits if h.rule.code == "STARTER_CARD_PROSPECT")
+    assert hit.primary_product.product_id == "CARD_MC_HYBRID"
+
+
+def test_starter_card_prospect_does_not_fire_for_the_maintain_baseline():
+    """Guards the same invariant as test_maintain_customer_fires_no_rule: an unremarkable
+    customer (freq90 below the frequent-transactor bar) must not get a starter-card pitch."""
+    ctx = _ctx(make_context(make_metrics()))
+    assert "STARTER_CARD_PROSPECT" not in codes(evaluate(ctx))
+
+
+def test_periodic_income_for_large_fd_fires_for_a_safe_depositor():
+    ctx = _ctx(make_context(
+        make_metrics(fdCurrent="200000000.00", fdLiquidated=False),
+        customer={"declaredRiskAppetite": "An toàn"},
+    ))
+    hits = evaluate(ctx)
+    hit = next(h for h in hits if h.rule.code == "PERIODIC_INCOME_FOR_LARGE_FD")
+    assert hit.primary_product.product_id == "DEP_PERIODIC_INCOME"
+
+
+def test_periodic_income_for_large_fd_does_not_fire_around_an_fd_event():
+    ctx = _ctx(make_context(
+        make_metrics(fdCurrent="200000000.00", fdLiquidated=True),
+        customer={"declaredRiskAppetite": "An toàn"},
+    ))
+    assert "PERIODIC_INCOME_FOR_LARGE_FD" not in codes(evaluate(ctx))

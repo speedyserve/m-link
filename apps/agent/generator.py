@@ -30,6 +30,8 @@ CONSULTATION_SYSTEM_PROMPT = (
     "8. Không tạo cảm giác ngân hàng đang theo dõi chi tiết chi tiêu của khách.\n"
     "9. Nêu lợi ích trước, lời mời trao đổi sau. Lãi suất/ưu đãi chỉ nói 'tham khảo, theo biểu lãi suất hiện hành'.\n"
     "10. Tránh ngôn ngữ hối thúc quá mức hoặc gây lo lắng.\n"
+    "11. Xưng hô với khách đúng theo 'Xưng hô với khách' trong dữ liệu đầu vào (anh/chị theo giới tính) — "
+    "KHÔNG dùng 'mình' hay 'bạn' để gọi khách.\n"
     "\nTrả lời BẮT BUỘC bằng JSON hợp lệ theo schema:\n"
     "{\n"
     '  "opening": "<câu mở đầu tự nhiên, gắn với tình trạng gần đây của khách, tối đa 40 từ>",\n'
@@ -82,6 +84,32 @@ def get_client() -> Optional[OpenAI]:
     return _cached_client
 
 
+def _pronoun(gender: str) -> str:
+    """Second-person address term for the customer: 'anh' (male), 'chị' (female), or a
+    neutral fallback when the gender is missing/unrecognised."""
+    normalized = (gender or "").strip().upper()
+    if normalized == "MALE":
+        return "anh"
+    if normalized == "FEMALE":
+        return "chị"
+    return "anh/chị"
+
+
+def _pronoun_ascii(gender: str) -> str:
+    """Diacritic-free variant for SMS bodies, which avoid Vietnamese accents to stay within
+    the GSM-7 160-character budget."""
+    normalized = (gender or "").strip().upper()
+    if normalized == "MALE":
+        return "anh"
+    if normalized == "FEMALE":
+        return "chi"
+    return "anh/chi"
+
+
+def _cap(pronoun: str) -> str:
+    return pronoun[0].upper() + pronoun[1:]
+
+
 def _extract_json(text: str) -> Optional[dict]:
     text = text.strip()
     try:
@@ -97,10 +125,11 @@ def _extract_json(text: str) -> Optional[dict]:
     return None
 
 
-def _context(customer_name: str, tier: str, headline: str, items: list[TalkingItem], period_label: str = "") -> str:
+def _context(customer_name: str, tier: str, headline: str, items: list[TalkingItem], period_label: str = "", gender: str = "") -> str:
     lines = [
         f"Tên khách hàng: {customer_name}",
         f"Phân hạng: {tier}",
+        f"Xưng hô với khách: {_pronoun(gender)}",
         *( [f"Kỳ phân tích: {period_label}"] if period_label else [] ),
         f"Tóm tắt tình trạng: {headline}",
         "",
@@ -113,15 +142,15 @@ def _context(customer_name: str, tier: str, headline: str, items: list[TalkingIt
 
 
 def generate_consultation_content(
-    customer_name: str, tier: str, headline: str, items: list[TalkingItem], period_label: str = "",
+    customer_name: str, tier: str, headline: str, items: list[TalkingItem], period_label: str = "", gender: str = "",
 ) -> dict:
     client = get_client()
-    context = _context(customer_name, tier, headline, items, period_label)
+    context = _context(customer_name, tier, headline, items, period_label, gender)
 
     if client is None or not settings.llm_enabled_for_content:
         reason = "disabled" if not settings.llm_enabled_for_content else "missing_api_key"
         logger.info("consultation_content source=fallback reason=%s", reason)
-        return _fallback_consultation(customer_name, items)
+        return _fallback_consultation(customer_name, items, gender)
 
     messages = [
         {"role": "system", "content": CONSULTATION_SYSTEM_PROMPT},
@@ -143,41 +172,43 @@ def generate_consultation_content(
             logger.warning("consultation_content remote_request_failed error=%s", type(error).__name__)
 
     logger.info("consultation_content source=fallback reason=remote_unavailable")
-    return _fallback_consultation(customer_name, items)
+    return _fallback_consultation(customer_name, items, gender)
 
 
-def _fallback_consultation(customer_name: str, items: list[TalkingItem]) -> dict:
+def _fallback_consultation(customer_name: str, items: list[TalkingItem], gender: str = "") -> dict:
+    pronoun = _pronoun(gender)
+    pronoun_ascii = _pronoun_ascii(gender)
     if not items:
         return {
-            "opening": f"Chào {customer_name}, em là cán bộ MSB phụ trách tài khoản của mình, hôm nay em xin phép hỏi thăm nhu cầu tài chính của mình ạ.",
+            "opening": f"Chào {customer_name}, em là cán bộ MSB phụ trách tài khoản của {pronoun}, hôm nay em xin phép hỏi thăm nhu cầu tài chính của {pronoun} ạ.",
             "main_points": [],
-            "closing": "Có gì cần em hỗ trợ thêm mình cứ nhắn em nhé ạ.",
-            "sms": f"MSB kinh chao {customer_name}! Ben em luon san sang ho tro nhu cau tai chinh cua minh. Lien he em de duoc tu van a!",
-            "zalo": f"Chào {customer_name} ạ! Em là cán bộ MSB phụ trách tài khoản của mình. Khi nào rảnh mình cho em xin 5-10 phút để trao đổi xem bên em có thể hỗ trợ gì thêm cho mình nhé ạ!",
+            "closing": f"Có gì cần em hỗ trợ thêm {pronoun} cứ nhắn em nhé ạ.",
+            "sms": f"MSB kinh chao {customer_name}! Ben em luon san sang ho tro nhu cau tai chinh cua {pronoun_ascii}. Lien he em de duoc tu van a!",
+            "zalo": f"Chào {customer_name} ạ! Em là cán bộ MSB phụ trách tài khoản của {pronoun}. Khi nào rảnh {pronoun} cho em xin 5-10 phút để trao đổi xem bên em có thể hỗ trợ gì thêm cho {pronoun} nhé ạ!",
         }
 
     first = items[0]
     if first.rec_type == "retention":
-        opening = f"Chào {customer_name}, lâu rồi em chưa được trao đổi với mình. Em muốn gửi mình vài ưu đãi dành riêng cho khách hàng ưu tiên của MSB ạ."
+        opening = f"Chào {customer_name}, lâu rồi em chưa được trao đổi với {pronoun}. Em muốn gửi {pronoun} vài ưu đãi dành riêng cho khách hàng ưu tiên của MSB ạ."
     elif first.rec_type in {"protection", "restructure"}:
-        opening = f"Chào {customer_name}, em muốn cùng mình xem lại kế hoạch tài chính để mình yên tâm hơn với các khoản đang có ạ."
+        opening = f"Chào {customer_name}, em muốn cùng {pronoun} xem lại kế hoạch tài chính để {pronoun} yên tâm hơn với các khoản đang có ạ."
     elif first.rec_type == "reactivation":
-        opening = f"Chào {customer_name}, em là cán bộ MSB phụ trách tài khoản của mình, em xin phép hỏi thăm xem gần đây mình có cần hỗ trợ gì về tài khoản không ạ."
+        opening = f"Chào {customer_name}, em là cán bộ MSB phụ trách tài khoản của {pronoun}, em xin phép hỏi thăm xem gần đây {pronoun} có cần hỗ trợ gì về tài khoản không ạ."
     else:
-        opening = f"Chào {customer_name}, em thấy tình hình tài chính của mình đang khá tốt. Em có một vài giải pháp phù hợp muốn chia sẻ với mình ạ."
+        opening = f"Chào {customer_name}, em thấy tình hình tài chính của {pronoun} đang khá tốt. Em có một vài giải pháp phù hợp muốn chia sẻ với {pronoun} ạ."
 
     main_points = [
         {
             "order": index,
             "title": item.product_name,
-            "talking_point": f"{item.title}. {item.rationale} Lãi suất và ưu đãi theo biểu hiện hành của MSB, em sẽ xác nhận lại trước khi mình quyết định ạ.",
+            "talking_point": f"{item.title}. {item.rationale} Lãi suất và ưu đãi theo biểu hiện hành của MSB, em sẽ xác nhận lại trước khi {pronoun} quyết định ạ.",
             "expected_objection": "Tôi cần thời gian suy nghĩ thêm",
-            "objection_response": "Dạ không sao ạ, em sẽ gửi thông tin chi tiết để mình tham khảo. Khi nào mình sẵn sàng thì mình báo em một tiếng nhé.",
+            "objection_response": f"Dạ không sao ạ, em sẽ gửi thông tin chi tiết để {pronoun} tham khảo. Khi nào {pronoun} sẵn sàng thì {pronoun} báo em một tiếng nhé.",
         }
         for index, item in enumerate(items[:3], 1)
     ]
-    closing = "Anh/chị thấy phương án nào phù hợp thì em hỗ trợ mình làm ngay trên App MSB hoặc tại chi nhánh ạ."
-    sms = f"MSB kinh chao {customer_name}! Ben em co giai phap {first.product_name} phu hop voi nhu cau hien tai cua minh. Lien he em de duoc tu van a!"
-    zalo = (f"Chào {customer_name} ạ! Em là cán bộ phụ trách tài khoản của mình bên MSB. Em muốn giới thiệu {first.product_name} "
-            "với nhiều ưu đãi dành cho mình. Mình sắp xếp cho em 5-10 phút gọi điện hoặc gặp trực tiếp để em trình bày chi tiết nhé. Em cảm ơn mình!")
+    closing = f"{_cap(pronoun)} thấy phương án nào phù hợp thì em hỗ trợ {pronoun} làm ngay trên App MSB hoặc tại chi nhánh ạ."
+    sms = f"MSB kinh chao {customer_name}! Ben em co giai phap {first.product_name} phu hop voi nhu cau hien tai cua {pronoun_ascii}. Lien he em de duoc tu van a!"
+    zalo = (f"Chào {customer_name} ạ! Em là cán bộ phụ trách tài khoản của {pronoun} bên MSB. Em muốn giới thiệu {first.product_name} "
+            f"với nhiều ưu đãi dành cho {pronoun}. {_cap(pronoun)} sắp xếp cho em 5-10 phút gọi điện hoặc gặp trực tiếp để em trình bày chi tiết nhé. Em cảm ơn {pronoun}!")
     return {"opening": opening, "main_points": main_points, "closing": closing, "sms": sms[:160], "zalo": zalo}

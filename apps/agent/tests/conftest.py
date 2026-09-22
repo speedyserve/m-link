@@ -43,13 +43,21 @@ def make_period_summary(
     casa_end: float = 29_000_000,
     card_spend: float = 0,
     card_spend_days: int = 0,
+    securities_total: float = 0,
+    securities_days: int = 0,
+    flight_total: float = 0,
+    flight_days: int = 0,
 ) -> dict:
     """Shape of GET /internal/customers/:id/period-summary, trimmed to what the rules read."""
     return {
         "range": {"from": from_date, "to": to_date, "days": days},
         "activity": {"days": days, "activeDays": active_days, "txnCount": txn_count},
         "balances": {"casaBalance": {"start": casa_start, "end": casa_end, "avg": (casa_start + casa_end) / 2}},
-        "flows": {"CC_SPEND": {"total": card_spend, "days": card_spend_days}},
+        "flows": {
+            "CC_SPEND": {"total": card_spend, "days": card_spend_days},
+            "SECURITIES": {"total": securities_total, "days": securities_days},
+            "AIRLINE": {"total": flight_total, "days": flight_days},
+        },
     }
 
 

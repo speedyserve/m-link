@@ -26,6 +26,9 @@ import { recomputeMetrics } from '../modules/metrics/metrics.service';
 const money = (value: number) => value.toFixed(2);
 const noon = (isoDate: string) => new Date(`${isoDate}T12:00:00.000Z`);
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86_400_000);
+// The workbook carries no deposit rates; use MSB's published reference rate for
+// "Tiết kiệm lãi suất cao nhất", 12 months at the counter (apps/agent/knowledge_base.py).
+const REFERENCE_FD_RATE_PCT = '5.3000';
 
 /** Branch -> RM. RM001 (HCM) is the UI default and owns the southern branches. */
 const RM_BY_BRANCH: Record<string, string> = {
@@ -59,6 +62,102 @@ async function insertChunked<T extends object>(entity: new () => T, rows: Partia
   for (let offset = 0; offset < rows.length; offset += size) {
     await repository.insert(rows.slice(offset, offset + size) as never);
   }
+}
+
+/**
+ * Deterministic PRNG (mulberry32, seeded from the CIF) so re-seeding produces the
+ * same generated interactions every time without persisting a random seed anywhere.
+ */
+function mulberry32(seed: number) {
+  return function next() {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashSeed(text: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+const INTERACTION_CHANNELS = ['CALL', 'BRANCH', 'APP', 'EMAIL'] as const;
+const COMPLAINT_TEMPLATES = [
+  { subject: 'Khiếu nại phí thường niên thẻ tín dụng', summary: 'Khách hàng thắc mắc về khoản phí thường niên phát sinh, đề nghị xem xét miễn giảm.' },
+  { subject: 'Giao dịch chuyển khoản bị treo', summary: 'Khách hàng phản ánh giao dịch chuyển khoản chưa về tài khoản người nhận, yêu cầu tra soát.' },
+  { subject: 'Lỗi đăng nhập ứng dụng MSB mBank', summary: 'Khách hàng không đăng nhập được ứng dụng nhiều lần trong tuần, đề nghị hỗ trợ kỹ thuật.' },
+  { subject: 'Thẻ tín dụng bị tạm khóa không rõ lý do', summary: 'Khách hàng phản ánh thẻ bị khóa khi đang giao dịch, cần mở lại sớm.' },
+  { subject: 'Phản ánh cách thức nhắc nợ', summary: 'Khách hàng đề nghị điều chỉnh kênh và khung giờ liên hệ nhắc nợ.' },
+  { subject: 'Thắc mắc về lãi suất tiết kiệm sau đáo hạn', summary: 'Khách hàng cho rằng lãi suất áp dụng thấp hơn tư vấn ban đầu, yêu cầu giải thích.' },
+  { subject: 'Phản ánh thời gian chờ giao dịch tại quầy', summary: 'Khách hàng phàn nàn thời gian chờ xử lý giao dịch tại chi nhánh quá lâu.' },
+];
+const SERVICE_TEMPLATES = [
+  { subject: 'Chăm sóc khách hàng định kỳ', summary: 'Gọi điện hỏi thăm nhu cầu sử dụng dịch vụ, khách hàng phản hồi tích cực.' },
+  { subject: 'Xác nhận thông tin liên hệ', summary: 'Cập nhật lại số điện thoại và email theo yêu cầu của khách hàng.' },
+  { subject: 'Hướng dẫn sử dụng ứng dụng mBank', summary: 'Hỗ trợ khách hàng thao tác chuyển tiền và mở sổ tiết kiệm online.' },
+  { subject: 'Xác nhận lịch trả nợ vay', summary: 'Gửi lại lịch trả nợ và nhắc hạn thanh toán kỳ tới.' },
+  { subject: 'Khảo sát mức độ hài lòng', summary: 'Thu thập phản hồi của khách hàng về chất lượng dịch vụ trong quý.' },
+  { subject: 'Tư vấn gia hạn sổ tiết kiệm', summary: 'Tư vấn phương án tái tục sổ tiết kiệm sắp đến hạn.' },
+];
+const INQUIRY_TEMPLATES = [
+  { subject: 'Hỏi về lãi suất gửi tiết kiệm online', summary: 'Khách hàng quan tâm mức lãi suất ưu đãi cho kỳ hạn 6 tháng.' },
+  { subject: 'Hỏi về hạn mức thẻ tín dụng', summary: 'Khách hàng đề nghị tư vấn nâng hạn mức thẻ tín dụng.' },
+  { subject: 'Hỏi về sản phẩm bảo hiểm nhân thọ', summary: 'Khách hàng muốn tìm hiểu thêm gói bảo hiểm liên kết đầu tư.' },
+  { subject: 'Hỏi về chuyển tiền quốc tế', summary: 'Khách hàng cần tư vấn phí và thời gian chuyển tiền qua Western Union.' },
+  { subject: 'Hỏi về mở tài khoản cho người thân', summary: 'Khách hàng muốn mở thêm tài khoản CASA cho người thân trong gia đình.' },
+  { subject: 'Hỏi về chứng chỉ tiền gửi MSB', summary: 'Khách hàng tìm hiểu điều kiện mua chứng chỉ tiền gửi kỳ hạn dài.' },
+];
+
+/**
+ * CIFs with a documented, period-sensitive demo scenario (docs/DEMO-SCENARIOS.md) that
+ * must keep sellAllowed=true. An OPEN+NEGATIVE complaint flips the Customer-Care-First
+ * guardrail in both dashboard.service.ts and the Agent, which would contradict the docs.
+ * 08101918/08102466/08100548 already carry curated rows above and are excluded separately.
+ */
+const GUARDRAIL_SENSITIVE_CIFS = new Set(['08100274', '08100959', '08102740', '08103288']);
+
+/** Generates 1-3 flavour interactions per customer not already covered by the curated rows above. */
+function generateMockInteractions(
+  customers: typeof msbDataset.customers,
+  reference: Date,
+  skipCifs: Set<string>,
+): Partial<CustomerInteraction>[] {
+  const rows: Partial<CustomerInteraction>[] = [];
+  for (const customer of customers) {
+    const cif = customer.cif;
+    if (skipCifs.has(cif)) continue;
+    const rand = mulberry32(hashSeed(cif));
+    const guardrailSafeOnly = GUARDRAIL_SENSITIVE_CIFS.has(cif);
+    const count = guardrailSafeOnly ? 1 : 1 + Math.floor(rand() * 3);
+    for (let i = 0; i < count; i++) {
+      const complaintWeight = customer.churnWarning ? 0.45 : 0.3;
+      const roll = rand();
+      const kind = roll < complaintWeight ? 'COMPLAINT' : roll < complaintWeight + 0.4 ? 'SERVICE' : 'INQUIRY';
+      const pool = kind === 'COMPLAINT' ? COMPLAINT_TEMPLATES : kind === 'SERVICE' ? SERVICE_TEMPLATES : INQUIRY_TEMPLATES;
+      const template = pool[Math.floor(rand() * pool.length)];
+      const sentiment =
+        kind === 'COMPLAINT' ? (rand() < 0.85 ? 'NEGATIVE' : 'NEUTRAL')
+        : kind === 'SERVICE' ? (rand() < 0.5 ? 'POSITIVE' : 'NEUTRAL')
+        : rand() < 0.3 ? 'POSITIVE' : 'NEUTRAL';
+      const canOpenNegative = !guardrailSafeOnly && sentiment === 'NEGATIVE' && rand() < 0.2;
+      const status = sentiment === 'NEGATIVE' ? (canOpenNegative ? 'OPEN' : 'CLOSED') : rand() < 0.25 ? 'OPEN' : 'CLOSED';
+      const channel = INTERACTION_CHANNELS[Math.floor(rand() * INTERACTION_CHANNELS.length)];
+      // The first row per customer always lands in the default 90-day demo window
+      // (docs/DEMO-SCENARIOS.md) so the "Tương tác" tab is never empty on first load.
+      const daysBack = i === 0 || rand() < 0.7 ? Math.floor(rand() * 89) : 90 + Math.floor(rand() * 210);
+      rows.push({
+        id: `INT-${cif}-${i + 1}`, customerId: cif, channel, type: kind, sentiment,
+        subject: template.subject, summary: template.summary, status,
+        interactionAt: addDays(reference, -daysBack),
+      });
+    }
+  }
+  return rows;
 }
 
 export async function seedDatabase(): Promise<{ customers: number; positions: number; transactions: number; metrics: number }> {
@@ -157,7 +256,7 @@ export async function seedDatabase(): Promise<{ customers: number; positions: nu
       const lastFdDay = [...rows].reverse().find((row) => row.fdBalance > 0)!;
       deposits.push({
         id: `DEP-${cif}`, customerId: cif, productName: 'Tiết kiệm lãi suất cao nhất',
-        principal: money(last.fdBalance > 0 ? last.fdBalance : lastFdDay.fdBalance), interestRate: null,
+        principal: money(last.fdBalance > 0 ? last.fdBalance : lastFdDay.fdBalance), interestRate: REFERENCE_FD_RATE_PCT,
         startDate: firstFd.positionDate, maturityDate: null, status: last.fdBalance > 0 ? 'ACTIVE' : 'CLOSED',
       });
     }
@@ -180,7 +279,9 @@ export async function seedDatabase(): Promise<{ customers: number; positions: nu
 
   // Interactions are not part of the workbook. One open complaint keeps the
   // Customer-Care-First guardrail demonstrable (08101918: repeated debt collection).
-  const interactions: Partial<CustomerInteraction>[] = [
+  // The rest of the portfolio gets deterministically generated flavour interactions
+  // (complaints, service calls, inquiries) so the "Tương tác" tab is never empty.
+  const curatedInteractions: Partial<CustomerInteraction>[] = [
     { id: 'INT-08101918-1', customerId: '08101918', channel: 'CALL', type: 'COMPLAINT', sentiment: 'NEGATIVE',
       subject: 'Khiếu nại về tần suất nhắc nợ vay thế chấp', summary: 'Khách hàng phản ánh bị gọi thu nợ nhiều lần trong tuần và đề nghị xem lại lịch trả nợ.',
       status: 'OPEN', interactionAt: addDays(reference, -4) },
@@ -197,7 +298,9 @@ export async function seedDatabase(): Promise<{ customers: number; positions: nu
       subject: 'Xác nhận lịch trả nợ', summary: 'Gửi lịch trả nợ vay thế chấp và thấu chi tháng tới.', status: 'CLOSED',
       interactionAt: addDays(reference, -10) },
   ];
-  await AppDataSource.getRepository(CustomerInteraction).insert(interactions);
+  const seededCifs = new Set(curatedInteractions.map((row) => row.customerId!));
+  const interactions = [...curatedInteractions, ...generateMockInteractions(msbDataset.customers, reference, seededCifs)];
+  await insertChunked(CustomerInteraction, interactions, 200);
 
   const metrics = await recomputeMetrics(AppDataSource, asOfDate);
   return { customers: customers.length, positions: positions.length, transactions: transactions.length, metrics };

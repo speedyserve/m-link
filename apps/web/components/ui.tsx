@@ -32,27 +32,64 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:
   );
 }
 
-/** KPI tile: icon chip, value and label. */
-export function StatTile({ label, value, icon: Icon, tone = 'navy' }: { label: string; value: ReactNode; icon: LucideIcon; tone?: 'navy' | 'orange' | 'danger' }) {
-  const chip = { navy: 'bg-navy-50 text-navy-800', orange: 'bg-orange-50 text-orange-600', danger: 'bg-red-50 text-red-700' }[tone];
+export function Hero({ eyebrow, title, accent, description, actions }: { eyebrow: string; title: string; accent?: string; description?: string; actions?: ReactNode }) {
   return (
-    <div className="card flex items-center gap-4 p-5">
-      <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${chip}`}><Icon size={22} /></div>
+    <section className="workspace-hero">
+      <div className="workspace-hero-content flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="workspace-hero-eyebrow">{eyebrow}</p>
+          <h1 className="workspace-hero-title">
+            {title}{accent && <> <span className="workspace-hero-accent">{accent}</span></>}
+          </h1>
+          {description && <p className="workspace-hero-description">{description}</p>}
+        </div>
+        {actions && <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** KPI tile: soft tinted surface with a light icon chip — brighter than a solid dark chip. */
+export function StatTile({ label, value, icon: Icon, tone = 'navy' }: { label: string; value: ReactNode; icon: LucideIcon; tone?: 'navy' | 'orange' | 'danger' | 'success' }) {
+  return (
+    <div className={`metric-tile metric-tile--${tone}`}>
+      <div className="metric-tile__icon"><Icon size={21} /></div>
       <div className="min-w-0">
-        <div className="text-2xl font-black leading-none">{value}</div>
-        <div className="mt-1.5 truncate text-sm text-navy-500">{label}</div>
+        <div className="metric-tile__value">{value}</div>
+        <div className="metric-tile__label">{label}</div>
       </div>
     </div>
   );
 }
 
+/** Card header with a tinted icon chip, small eyebrow label and title. */
+export function SectionHead({ icon: Icon, eyebrow, title, tone = 'navy', actions }: { icon: LucideIcon; eyebrow: string; title: string; tone?: 'navy' | 'orange' | 'danger' | 'success'; actions?: ReactNode }) {
+  const chip = {
+    navy: 'bg-navy-50 text-navy-800', orange: 'bg-orange-50 text-orange-600',
+    danger: 'bg-red-50 text-red-600', success: 'bg-emerald-50 text-success',
+  }[tone];
+  return (
+    <div className="card-head">
+      <div className="flex items-center gap-3">
+        <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${chip}`}><Icon size={18} /></div>
+        <div><p className="label">{eyebrow}</p><h2 className="mt-0.5 text-base font-extrabold">{title}</h2></div>
+      </div>
+      {actions}
+    </div>
+  );
+}
+
 /** Underlined tab bar (the selected tab carries the orange indicator). */
-export function Tabs<T extends string>({ items, value, onChange }: { items: ReadonlyArray<{ id: T; label: string }>; value: T; onChange: (id: T) => void }) {
+export function Tabs<T extends string>({ items, value, onChange }: { items: ReadonlyArray<{ id: T; label: string; icon?: LucideIcon }>; value: T; onChange: (id: T) => void }) {
   return (
     <div className="tabs" role="tablist">
-      {items.map((item) => (
-        <button key={item.id} type="button" role="tab" aria-selected={value === item.id} className="tab" onClick={() => onChange(item.id)}>{item.label}</button>
-      ))}
+      {items.map((item) => {
+        const Icon = item.icon;
+        return <button key={item.id} type="button" role="tab" aria-selected={value === item.id} className="tab" onClick={() => onChange(item.id)}>
+          {Icon && <span className="tab-icon"><Icon size={15}/></span>}
+          {item.label}
+        </button>;
+      })}
     </div>
   );
 }

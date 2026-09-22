@@ -12,7 +12,7 @@ Expected outcome for the default view (last 90 days as of 2026-09-18):
 | `08100548` | Phạm Đức Duy | Loans of 5.8 bn against 59 m of assets, leverage 99x | Protection insurance (Pru – Bảo vệ tối đa); loan products are blocked |
 | `08100959` | Đặng Ngọc Hân | CASA +28.4% in 90 days, no bond, 2.2 bn term deposit | MSB certificates of deposit |
 | `08101918` | Trịnh Hoàng Phúc | Two open complaints about debt-collection calls (seeded interactions), leverage 40x | CUSTOMER CARE FIRST / DO NOT SELL, no recommendations |
-| `08102740` | Hồ Bảo Uyên | Largest TAV (5.81 bn), Value Score 100, Priority 53.9 | Top of the RB queue; no rule fires (`MAINTAIN`) |
+| `08102740` | Hồ Bảo Uyên | Largest TAV (5.81 bn), Value Score 100, Priority 53.9 | Top of the RB queue. As of the coverage-extension rules below (`SECURITIES_ACTIVE_IN_PERIOD`, `HEALTH_PROTECTION_GAP`, `HOME_LOAN_PROSPECT`), this high-value, under-penetrated profile now surfaces 3 recommendations instead of the earlier `MAINTAIN` (no rule fires); under `AGENT_PROVIDER=mock` it still returns the static empty scenario in `mock-fixtures.ts`, so mock and the real Agent now intentionally disagree for this CIF |
 | `08102466` | Mai Thu Sương | Dormant since 2026-02-10, term deposit closed 2026-03-20 | Depends on the period, see below |
 | `08103288` | Trần Gia Hưng | New CIF, opened 2026-08-05 (44 days before the as-of date) | `NEW_CIF_ONBOARDING` only for a 30-day period, see below |
 
@@ -25,6 +25,25 @@ Scanning every customer with as-of dates every 5 days and windows of 30, 60, 90 
 rules fire somewhere: `LEVERAGE_HIGH`, `CHURN_HIGH`, `FD_EVENT` (the mid-term liquidation branch), `CASA_SURGE_NO_BOND`,
 `NEW_CIF_ONBOARDING`, `BUSINESS_CASHFLOW_VOLATILE` (for example `08103151` around 2026-01-01 with a 30-day window),
 `FX_ACTIVE`, `DORMANT` and the three period rules.
+
+### Coverage-extension rules (pending business approval)
+
+Added so every catalogue product has at least one reachable rule, not part of the original docx matrix — same
+"pending business approval" status as the three period rules. Evaluated in this order, after every rule above:
+`SECURITIES_ACTIVE_IN_PERIOD` (≥5 days of securities activity in a ≥30-day window → fund certificate / bond),
+`FLIGHT_ACTIVE_IN_PERIOD` (≥3 days of flight-ticket purchases in a ≥30-day window → travel credit card),
+`HEALTH_PROTECTION_GAP` (age ≥30, no life/non-life insurance held → health insurance),
+`PROPERTY_INSURANCE_GAP` (holds a mortgage, no non-life insurance → apartment insurance),
+`HOME_LOAN_PROSPECT` (Aff/MassAff, Value Score >50, leverage <70%, no mortgage → home loan),
+`CONSUMER_LOAN_PROSPECT` (zero leverage, no loan held, CASA trend ≥0 → consumer loan),
+`FAMILY_CARD_PROSPECT` (behaviour note mentions "gia đình", no credit card → family card),
+`STARTER_CARD_PROSPECT` (Mass tier, freq90 ≥150, no credit card, no "gia đình" note → hybrid card),
+`PERIODIC_INCOME_FOR_LARGE_FD` (holds an active term deposit, declared risk appetite An toàn, no FD event → periodic-income deposit).
+
+These sit at the end of `RULES` (lowest priority) so they only fill in when fewer than `MAX_RECOMMENDATIONS` higher-priority
+rules already fired — they never crowd out churn/leverage/dormant signals. One side effect: `08102740` (see the table
+above) now gets recommendations instead of `MAINTAIN`, since its high-value, under-penetrated profile matches several
+of these rules.
 
 Rules that never fire on this dataset and are covered by synthetic unit tests only:
 

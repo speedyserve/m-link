@@ -1,25 +1,20 @@
+import Image from 'next/image';
+
 /**
- * M-Link wordmark drawn in code with the MSB palette. The bank's own logo files are deliberately
- * not bundled: this is a product mark for an internal tool, not a reproduction of MSB's logo.
+ * MSB's real icon mark (public/brand/msb-icon.svg, from the bank's own brand assets) paired with
+ * the "M-Link" wordmark for this internal tool.
  */
-export function BrandMark({ size = 36, onDark = false }: { size?: number; onDark?: boolean }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 36 36" role="img" aria-label="M-Link" className="shrink-0">
-      <rect width="36" height="36" rx="12" fill={onDark ? '#ffffff' : '#091e42'} />
-      <path d="M9 25V11.5l5.6 7.2 5.6-7.2V25" fill="none" stroke="#f4600c" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="26.5" cy="13" r="2.2" fill="#ff6a00" />
-    </svg>
-  );
+export function BrandMark({ size = 36 }: { size?: number }) {
+  return <Image src="/brand/msb-icon.svg" alt="MSB" width={size} height={Math.round((size * 31) / 52)} className="shrink-0" priority/>;
 }
 
-/** `onDark` renders the light variant used on the navy sidebar. */
-export function Wordmark({ onDark = false }: { onDark?: boolean }) {
+export function Wordmark() {
   return (
-    <span className="flex items-center gap-2.5">
-      <BrandMark onDark={onDark} />
+    <span className="flex items-center gap-3">
+      <BrandMark size={52}/>
       <span className="leading-tight">
-        <span className={`block text-xl font-black tracking-tight ${onDark ? 'text-white' : 'text-navy-900'}`}>M-Link</span>
-        <span className={`block text-[10px] font-bold uppercase tracking-[.14em] ${onDark ? 'text-white/60' : 'text-navy-500'}`}>MSB Retail Banking</span>
+        <span className="block text-2xl font-black tracking-tight text-navy-900">MSB</span>
+        <span className="block text-sm font-bold uppercase tracking-[.14em] text-orange-600">M-Link</span>
       </span>
     </span>
   );

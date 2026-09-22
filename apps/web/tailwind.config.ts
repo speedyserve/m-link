@@ -1,8 +1,7 @@
 import type { Config } from 'tailwindcss';
 
 /**
- * Colors mirror the tokens in app/globals.css so markup can use `bg-navy-900`, `text-orange-500`
- * and so on. Tailwind's default `rounded-lg` (8px) and `rounded-xl` (12px) already match MSB's
+ * Colors mirror the warm neutral tokens in app/globals.css. Tailwind's default `rounded-lg` (8px) and `rounded-xl` (12px) already match MSB's
  * radii, so they are left alone.
  */
 export default {
@@ -11,13 +10,13 @@ export default {
     extend: {
       colors: {
         navy: {
-          50: '#f2f5fa', 100: '#dee5ef', 200: '#c3cfe1', 500: '#505f79',
-          700: '#1c3461', 800: '#12294f', 900: '#091e42',
+          50: '#faf8f6', 100: '#eee9e4', 200: '#dfd9d3', 500: '#827970',
+          700: '#625b54', 800: '#4c4640', 900: '#332f2b',
         },
         orange: {
-          50: '#feefe7', 300: '#ffa95a', 500: '#f4600c', 600: '#e45f35', bright: '#ff6a00',
+          50: '#fdeee9', 300: '#ff9466', 500: '#ea4e24', 600: '#d5401a', bright: '#ff6438',
         },
-        canvas: '#f7f8f9',
+        canvas: '#fffdfa',
         danger: '#ef4444',
         success: '#157f4d',
       },

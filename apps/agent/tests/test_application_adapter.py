@@ -19,7 +19,7 @@ def test_churn_high_customer_is_at_risk_with_retention_first(churn_high_s):
     assert response.recommendations[0].type == "retention"
     assert response.recommendations[0].product.id == "DEP_ONLINE"
     assert len(response.recommendations) <= 3
-    assert any(evidence.description.startswith("recencyDays = 229") for evidence in response.recommendations[0].evidence)
+    assert any(evidence.description.startswith("Số ngày không giao dịch gần nhất: 229") for evidence in response.recommendations[0].evidence)
     assert all(evidence.sourceReference == "customer_metrics:08102466:2026-09-18" for evidence in response.recommendations[0].evidence)
     assert response.signals[0].type == "churn_high"
 
