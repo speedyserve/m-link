@@ -115,6 +115,24 @@ export class Deposit {
   @Column() status: string;
 }
 
+/** One row per active loan type per customer — carries the repayment date that
+ * `customer_daily_positions` doesn't (that table only has the running balance). */
+@Entity('customer_loans')
+@Index(['customerId'])
+export class CustomerLoan {
+  @PrimaryColumn('varchar') id: string;
+  @Column({ name: 'customer_id' }) customerId: string;
+  @ManyToOne(() => Customer, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'customer_id' }) customer: Customer;
+  @Column({ name: 'loan_type' }) loanType: string;
+  @Column('numeric', { precision: 20, scale: 2 }) principal: string;
+  @Column({ name: 'disbursement_date', type: 'date' }) disbursementDate: string;
+  @Column('numeric', { name: 'interest_rate', precision: 7, scale: 4 }) interestRate: string;
+  @Column({ name: 'term_months', type: 'integer' }) termMonths: number;
+  @Column('numeric', { name: 'monthly_payment_estimate', precision: 20, scale: 2 }) monthlyPaymentEstimate: string;
+  @Column({ name: 'next_due_date', type: 'date' }) nextDueDate: string;
+  @Column({ default: 'ACTIVE' }) status: string;
+}
+
 @Entity('customer_interactions')
 @Index(['customerId', 'interactionAt'])
 export class CustomerInteraction {
@@ -310,6 +328,7 @@ export const entities = [
   BankTransaction,
   Card,
   Deposit,
+  CustomerLoan,
   CustomerInteraction,
   AgentRun,
   Recommendation,

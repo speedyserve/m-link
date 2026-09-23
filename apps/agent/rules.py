@@ -42,7 +42,7 @@ PERIOD_MIN_DAYS_FOR_INACTIVITY = 30
 PERIOD_CASA_DROP = -0.20
 PERIOD_CARD_SPEND_TO_LIMIT = 0.5
 # Monthly-equivalent card spend extrapolates the window, so require a month of data before
-# acting on it; a one-week spike must not trigger a card upgrade.
+# acting on it; a one-week spike must not trigger a card offer.
 PERIOD_MIN_DAYS_FOR_CARD_SPEND = 30
 DAYS_PER_MONTH = 30
 
@@ -131,6 +131,9 @@ class RuleContext:
     next_best_offers: dict[str, int | None]
     customer: dict
     deposits: list[dict] = field(default_factory=list)
+    # Raw interaction history, so a rule can cite a matching call/inquiry as real evidence
+    # instead of relying on metrics alone (open complaints are handled separately, upstream).
+    interactions: list[dict] = field(default_factory=list)
     # Present only when the Application asked for a filtered window.
     period: PeriodFacts | None = None
 
@@ -148,6 +151,18 @@ class RuleContext:
 
     def holds(self, code: str) -> bool:
         return bool(self.holdings.get(code))
+
+    def find_inquiry(self, keyword: str) -> dict | None:
+        """Most recent INQUIRY interaction whose subject/summary mentions `keyword` (case-insensitive)."""
+        kw = keyword.lower()
+        matches = [
+            interaction for interaction in self.interactions
+            if str(interaction.get("type", "")).upper() == "INQUIRY"
+            and (kw in str(interaction.get("subject") or "").lower() or kw in str(interaction.get("summary") or "").lower())
+        ]
+        if not matches:
+            return None
+        return max(matches, key=lambda interaction: str(interaction.get("interactionAt") or ""))
 
     def fd_maturing_within(self, days: int) -> bool:
         """True when an ACTIVE deposit has a maturity date inside the window (dataset feeds may add it later)."""
@@ -206,6 +221,9 @@ class Rule:
     is_advisory: bool = False   # advisory rules carry no product and never count as a sale
     period_evidence: tuple[str, ...] = ()   # facts of the analysed window, see PERIOD_EVIDENCE
     period_rule: bool = False               # extension beyond the docx matrix
+    # Optional: one extra piece of evidence outside the metric/period system, e.g. citing a
+    # matching customer interaction. Returns None when nothing applies to this customer.
+    extra_evidence: Callable[["RuleContext"], "EvidenceItem | None"] | None = None
 
 
 @dataclass(frozen=True)
@@ -242,6 +260,10 @@ def format_metric(metrics: CustomerMetrics, field_name: str) -> str:
     value = getattr(metrics, field_name)
     if field_name in {"casaTrend"}:
         return f"{'+' if value > 0 else ''}{_pct(value)}"
+    # `ras` is rasRaw capped at 100% for the priority-score formula (see metrics.formulas.ts);
+    # showing a bare "100.0%" hides how much higher the uncapped ratio actually is.
+    if field_name == "ras" and metrics.rasRaw > 1:
+        return f">{_pct(1.0, 0)}"
     if field_name in {"cur", "phs", "ras", "casaCv"}:
         return _pct(value)
     if field_name == "leverage":
@@ -313,6 +335,9 @@ EVIDENCE_LABELS: dict[str, str] = {
     "securitiesDays": "Số ngày có phát sinh giao dịch nạp tiền chứng khoán trong kỳ",
     "flightTotal": "Tổng giá trị mua vé máy bay trong kỳ",
     "flightDays": "Số ngày mua vé máy bay trong kỳ",
+    "insurance_inquiry": "Lịch sử tương tác với khách",
+    "cd_inquiry": "Lịch sử tương tác với khách",
+    "savings_inquiry": "Lịch sử tương tác với khách",
 }
 
 
@@ -321,6 +346,15 @@ EVIDENCE_HINTS: dict[str, str] = {
     "valueScore": "quy mô tổng tài sản của khách so với khách có tài sản lớn nhất danh mục (100 = lớn nhất; càng cao khách càng giá trị)",
     "churnScore": "càng cao khách càng có nguy cơ rời bỏ ngân hàng",
     "phs": "số nhóm sản phẩm khách đang dùng trên tổng số nhóm MSB cung cấp",
+    "leverage": "khách đang vay bao nhiêu so với tổng tài sản đang có; trên 70% là vay khá nhiều",
+    "cur": "khách đã tiêu hết bao nhiêu phần trăm hạn mức thẻ tín dụng; trên 80% là gần chạm trần",
+    "ras": "tỷ trọng tài sản khách để vào kênh có rủi ro (trái phiếu, chứng chỉ quỹ, ngoại hối) so với tổng tài sản; trên 50% là khách quen chịu rủi ro cao",
+    "casaCv": "mức độ lên xuống thất thường của số dư tài khoản thanh toán trong kỳ; càng cao dòng tiền càng khó đoán",
+    "casaTrend": "số dư tài khoản thanh toán đang tăng hay giảm so với trước; dương là tăng, âm là giảm",
+    "recencyDays": "đã bao nhiêu ngày kể từ lần khách giao dịch gần nhất",
+    "holdingCount": "khách đang dùng bao nhiêu sản phẩm của MSB trên tổng 13 nhóm sản phẩm",
+    "crossSellScore": "còn bao nhiêu dư địa để giới thiệu thêm sản phẩm mới cho khách; càng cao càng nhiều cơ hội",
+    "priorityScore": "mức độ nên ưu tiên liên hệ khách này so với các khách khác, gộp cả tài sản, rủi ro rời bỏ và cơ hội bán thêm",
 }
 
 
@@ -334,7 +368,7 @@ def evidence_hint(field_name: str) -> str:
 
 
 def _invest_products(ctx: RuleContext) -> list[str]:
-    ids = ["CD_MSB"]
+    ids = ["CD_MSB", "INV_FUND_CERT_RB"]
     if ctx.metrics.riskAppetiteLabel in {"Cân bằng", "Rủi ro cao"}:
         ids.append("BANCA_PRU_INVEST")
     return ids
@@ -352,7 +386,7 @@ def _nbo_products(ctx: RuleContext) -> list[str]:
 
 
 def _securities_products(ctx: RuleContext) -> list[str]:
-    ids = ["INV_FUND_CERT_RB", "INV_BOND_RB"]
+    ids = ["INV_FUND_CERT_RB", "INV_BOND_RB", "CD_MSB", "DEP_PERIODIC_INCOME"]
     if ctx.metrics.riskAppetiteLabel in {"Cân bằng", "Rủi ro cao"}:
         ids.append("BANCA_PRU_INVEST")
     return ids
@@ -362,6 +396,39 @@ def _flight_products(ctx: RuleContext) -> list[str]:
     if ctx.metrics.tierLabel == "Aff":
         return ["CARD_MC_WORLD_ELITE", "CARD_MC_GREEN_WORLD"]
     return ["CARD_MC_GREEN_WORLD"]
+
+
+def _credit_card_products(ctx: RuleContext) -> list[str]:
+    # CARD_MC_GREEN_WORLD requires income transfers from 40tr/month (see knowledge_base.py) —
+    # only offer it to Aff/MassAff, who plausibly clear that bar. A Mass-tier customer
+    # (small CASA, e.g. a few million to a few tens of millions) starts on the no-minimum
+    # Hybrid card instead, same entry product STARTER_CARD_PROSPECT already uses for Mass.
+    if ctx.metrics.tierLabel == "Aff":
+        return ["CARD_VISA_SIGNATURE", "CARD_MC_WORLD_ELITE"]
+    if ctx.metrics.tierLabel == "MassAff":
+        return ["CARD_VISA_SIGNATURE", "CARD_MC_GREEN_WORLD"]
+    return ["CARD_MC_HYBRID"]
+
+
+def _make_inquiry_evidence(keyword: str, field_name: str, intro: str) -> Callable[[RuleContext], "EvidenceItem | None"]:
+    """Cites the customer's own past inquiry matching `keyword` — much stronger evidence
+    than metrics alone that the customer actually wants this kind of product."""
+    def _evidence(ctx: RuleContext) -> EvidenceItem | None:
+        hit = ctx.find_inquiry(keyword)
+        if not hit:
+            return None
+        when = str(hit.get("interactionAt") or "")[:10]
+        text = hit.get("summary") or hit.get("subject") or ""
+        value = f"{intro} ngày {when}: {text}" if when else f"{intro}: {text}"
+        return EvidenceItem(field_name, value, source="interaction")
+    return _evidence
+
+
+_cd_inquiry_evidence = _make_inquiry_evidence("chứng chỉ", "cd_inquiry", "Khách từng chủ động hỏi về chứng chỉ tiền gửi")
+_savings_inquiry_evidence = _make_inquiry_evidence("tiết kiệm", "savings_inquiry", "Khách từng chủ động hỏi về gửi tiết kiệm")
+
+
+_health_inquiry_evidence = _make_inquiry_evidence("bảo hiểm", "insurance_inquiry", "Khách từng chủ động hỏi về bảo hiểm")
 
 
 RULES: list[Rule] = [
@@ -388,6 +455,7 @@ RULES: list[Rule] = [
         condition=lambda ctx: ctx.metrics.churnScore >= CHURN_HIGH,
         products=lambda ctx: ["DEP_ONLINE", "DEP_HIGHEST_RATE"],
         evidence_fields=("churnScore", "recencyDays", "casaTrend"),
+        extra_evidence=_savings_inquiry_evidence,
     ),
     Rule(
         code="RISK_MISMATCH", priority=4, rec_type="advisory", severity="medium",
@@ -420,6 +488,7 @@ RULES: list[Rule] = [
         condition=lambda ctx: ctx.metrics.casaTrend > TREND_SURGE and not ctx.holds("BOND"),
         products=_invest_products,
         evidence_fields=("casaTrend", "casaAvg90", "ras"),
+        extra_evidence=_cd_inquiry_evidence,
     ),
     Rule(
         code="NEW_CIF_ONBOARDING", priority=8, rec_type="onboarding", severity="low",
@@ -449,7 +518,7 @@ RULES: list[Rule] = [
     ),
     Rule(
         code="SECURITIES_ACTIVE_IN_PERIOD", priority=11, rec_type="cross_sell", severity="low",
-        title="Đầu tư chứng khoán thường xuyên — giới thiệu Chứng chỉ quỹ / Trái phiếu phân phối qua RB",
+        title="Đầu tư chứng khoán thường xuyên — giới thiệu Chứng chỉ quỹ / Trái phiếu qua MSB",
         rationale="Phát sinh giao dịch chứng khoán nhiều ngày trong kỳ: khách có thói quen đầu tư, phù hợp mở rộng sang kênh chứng chỉ quỹ/trái phiếu do MSB phân phối.",
         condition=lambda ctx: bool(
             ctx.period
@@ -502,10 +571,11 @@ RULES: list[Rule] = [
         products=lambda ctx: ["DEP_ONLINE", "DEP_PARTIAL_WITHDRAWAL"],
         evidence_fields=("casaAvg90",),
         period_evidence=("casaStart", "casaEnd", "casaChange"), period_rule=True,
+        extra_evidence=_savings_inquiry_evidence,
     ),
     Rule(
         code="CARD_SPEND_HIGH_IN_PERIOD", priority=16, rec_type="cross_sell", severity="medium",
-        title="Chi tiêu thẻ trong kỳ ở mức cao — đề xuất nâng hạng thẻ hoàn tiền",
+        title="Chi tiêu thẻ trong kỳ ở mức cao — giới thiệu dòng thẻ hoàn tiền phù hợp",
         rationale="Chi tiêu thẻ quy về tháng đạt từ 50% hạn mức trong khi tỷ lệ dùng hạn mức vẫn an toàn: khách dùng thẻ nhiều và trả tốt.",
         condition=lambda ctx: bool(
             ctx.period
@@ -529,6 +599,7 @@ RULES: list[Rule] = [
         ),
         products=lambda ctx: ["BANCA_M_FLEXCARE"] if ctx.metrics.tierLabel in {"Aff", "MassAff"} else ["BANCA_HOSPITAL_CASH", "BANCA_CRITICAL_ILLNESS"],
         evidence_fields=("holdingCount", "valueScore"),
+        extra_evidence=_health_inquiry_evidence,
     ),
     Rule(
         code="PROPERTY_INSURANCE_GAP", priority=18, rec_type="protection", severity="low",
@@ -552,16 +623,17 @@ RULES: list[Rule] = [
         evidence_fields=("valueScore", "leverage"),
     ),
     Rule(
-        code="CONSUMER_LOAN_PROSPECT", priority=20, rec_type="cross_sell", severity="low",
-        title="Khách hàng tài chính lành mạnh, chưa vay — giới thiệu Vay mua ô tô / xây sửa nhà / tiêu dùng",
-        rationale="Không có dư nợ vay hiện tại và CASA vẫn ổn định/tăng: đủ điều kiện xem xét khoản vay tiêu dùng khi có nhu cầu.",
+        code="CREDIT_CARD_PROSPECT", priority=20, rec_type="cross_sell", severity="low",
+        title="Khách hàng tài chính lành mạnh, chưa vay — giới thiệu mở thẻ tín dụng",
+        rationale="Không có dư nợ vay hiện tại, CASA vẫn ổn định/tăng và chưa sở hữu thẻ tín dụng: phù hợp mở thẻ tín dụng thay vì chào vay, tận dụng dòng tiền sẵn có mà không phát sinh nợ vay mới.",
         condition=lambda ctx: bool(
             ctx.metrics.leverage == 0
             and not ctx.holds("LOAN_ADVANCE") and not ctx.holds("LOAN_OVERDRAFT")
             and not ctx.holds("LOAN_UNSECURED") and not ctx.holds("LOAN_MORTGAGE")
+            and not ctx.holds("CREDIT_CARD")
             and ctx.metrics.casaTrend >= 0 and ctx.metrics.freq90 > 0
         ),
-        products=lambda ctx: ["LOAN_CONSUMER"],
+        products=_credit_card_products,
         evidence_fields=("casaTrend", "freq90"),
     ),
     Rule(
@@ -592,6 +664,7 @@ RULES: list[Rule] = [
         ),
         products=lambda ctx: ["DEP_PERIODIC_INCOME"],
         evidence_fields=("fdCurrent", "riskAppetiteLabel"),
+        extra_evidence=_savings_inquiry_evidence,
     ),
 ]
 
@@ -622,5 +695,7 @@ def evaluate(ctx: RuleContext, limit: int = MAX_RECOMMENDATIONS) -> list[RuleHit
                 EvidenceItem(field_name, format_period(ctx.period, field_name), source="period_summary")
                 for field_name in rule.period_evidence
             ]
+        if rule.extra_evidence and (extra := rule.extra_evidence(ctx)):
+            evidence.append(extra)
         hits.append(RuleHit(rule=rule, products=products, evidence=evidence))
     return hits[:limit]

@@ -193,21 +193,99 @@ th:last-child, td:last-child { padding-right: 1.25rem; }
 .workspace-hero, .customer-hero {
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) + 4px);
   background:
-    linear-gradient(90deg, rgba(128, 14, 14, .94) 0%, rgba(196, 34, 22, .86) 38%, rgba(234, 78, 36, .45) 62%, rgba(234, 78, 36, 0) 82%),
+    linear-gradient(90deg, rgba(96, 10, 10, .96) 0%, rgba(180, 28, 18, .9) 36%, rgba(234, 78, 36, .5) 64%, rgba(234, 78, 36, 0) 86%),
     url('/brand/msb-hero-bg.jpg') right center / cover no-repeat,
     #c9261a;
-  box-shadow: 0 10px 28px rgba(180, 40, 20, .18);
+  box-shadow: 0 24px 50px rgba(100, 15, 8, .4), 0 6px 14px rgba(100, 15, 8, .28), inset 0 1px 0 rgba(255, 255, 255, .22);
   color: #fff;
 }
-.workspace-hero-content { position: relative; padding: 1.75rem 2rem; min-height: 11rem; }
-.workspace-hero-eyebrow { color: #ffd2b3; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.workspace-hero-title { margin: .4rem 0 0; color: #fff; font-size: 1.85rem; font-weight: 900; letter-spacing: 0; line-height: 1.12; text-transform: uppercase; }
-.workspace-hero-accent { color: #ffbf8a; }
-.workspace-hero-description { max-width: 46rem; margin: .65rem 0 0; color: rgba(255, 255, 255, .88); font-size: .9rem; line-height: 1.55; }
-.workspace-hero .button, .customer-hero .button { background: #fff; color: var(--orange-600); }
-.workspace-hero .button:hover, .customer-hero .button:hover { background: #fff4ec; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
+/* Faint tech grid + glossy sheen + ambient glow give the flat gradient a layered, 3D feel. */
+.workspace-hero::before, .customer-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .18) 0%, rgba(255, 255, 255, 0) 45%),
+    repeating-linear-gradient(120deg, rgba(255, 255, 255, .05) 0 1px, rgba(255, 255, 255, 0) 1px 64px),
+    repeating-linear-gradient(30deg, rgba(255, 255, 255, .04) 0 1px, rgba(255, 255, 255, 0) 1px 64px);
+  pointer-events: none;
+}
+.workspace-hero::after, .customer-hero::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  right: -8%;
+  width: 60%;
+  height: 240%;
+  background: radial-gradient(closest-side, rgba(255, 180, 120, .4), rgba(255, 180, 120, 0) 70%);
+  filter: blur(2px);
+  pointer-events: none;
+}
+.workspace-hero-content { position: relative; padding: 1.85rem 2.1rem; min-height: 11.5rem; }
+.workspace-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .3rem .75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .28);
+  background: rgba(255, 255, 255, .1);
+  backdrop-filter: blur(6px);
+  color: #ffe4cc;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.workspace-hero-eyebrow::before { content: ''; width: .4rem; height: .4rem; border-radius: 999px; background: #ffb066; box-shadow: 0 0 8px 2px rgba(255, 176, 102, .8); }
+.workspace-hero-title {
+  margin: .55rem 0 0;
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: -.01em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .18), 0 3px 0 rgba(70, 10, 6, .3), 0 10px 22px rgba(40, 5, 3, .5);
+}
+.workspace-hero-accent {
+  color: #ffd9b8;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .18), 0 3px 0 rgba(70, 10, 6, .3), 0 10px 22px rgba(40, 5, 3, .5);
+}
+.workspace-hero-description { max-width: 46rem; margin: .7rem 0 0; color: rgba(255, 255, 255, .9); font-size: .9rem; line-height: 1.6; }
+.workspace-hero .button, .customer-hero .button {
+  position: relative;
+  background: linear-gradient(180deg, #fff, #ffe9d9);
+  color: var(--orange-600);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, .28), 0 2px 4px rgba(0, 0, 0, .1), inset 0 1px 0 #fff;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.workspace-hero .button:hover, .customer-hero .button:hover {
+  background: #fff4ec;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, .32), 0 3px 6px rgba(0, 0, 0, .14), inset 0 1px 0 #fff;
+  transform: translateY(-2px);
+}
+/* The "Phân tích với M-Link" CTA is the primary action on this page. The right side of the
+   banner fades to near-white, so a plain white button has nothing to contrast against —
+   a solid dark-navy ring around it gives it a hard edge no matter how pale the backdrop is. */
+.customer-hero .button:not(.secondary) {
+  background: #fff;
+  color: var(--orange-600);
+  border: 2px solid var(--navy-900);
+  box-shadow: 0 14px 30px rgba(51, 47, 43, .3);
+  padding: 1rem 1.6rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+.customer-hero .button:not(.secondary) svg { width: 22px; height: 22px; }
+.customer-hero .button:not(.secondary):hover {
+  background: var(--orange-50);
+  box-shadow: 0 18px 36px rgba(51, 47, 43, .36);
+  transform: translateY(-2px);
+}
+.customer-hero .button:not(.secondary):disabled { box-shadow: none; border-color: var(--navy-200); }
 
 /* KPI cards use a small colour rail instead of repeated tinted panels. */
 .metric-tile { position: relative; display: flex; min-height: 112px; align-items: center; gap: 1rem; overflow: hidden; border: 1px solid var(--navy-100); border-radius: var(--radius); background: #fff; padding: 1.15rem 1.25rem; box-shadow: var(--shadow-card); }
@@ -221,6 +299,7 @@ th:last-child, td:last-child { padding-right: 1.25rem; }
 .metric-tile--success .metric-tile__icon { background: var(--teal-50); border-color: #a7e3d9; color: var(--teal-600); }
 .metric-tile__value { font-size: 2rem; font-weight: 900; line-height: 1; color: var(--navy-900); }
 .metric-tile__label { margin-top: .35rem; color: var(--navy-500); font-size: .8rem; font-weight: 700; line-height: 1.2; }
+.metric-tile__description { margin-top: .2rem; color: var(--navy-500); font-size: .7rem; line-height: 1.25; }
 
 @media (max-width: 639px) {
   .topbar { gap: .5rem; padding-right: .75rem; padding-left: .75rem; overflow: hidden; }
@@ -242,4 +321,43 @@ th:last-child, td:last-child { padding-right: 1.25rem; }
       url('/brand/msb-hero-bg.jpg') 70% center / cover no-repeat,
       #c9261a;
   }
+}
+
+/* Floating AI launcher, bottom-right of the viewport. */
+.floating-assistant {
+  display: grid;
+  place-items: center;
+  height: 64px;
+  width: 64px;
+  border-radius: 999px;
+  border: 3px solid var(--orange-500);
+  background: linear-gradient(180deg, #fff, var(--orange-50));
+  color: var(--orange-600);
+  box-shadow: 0 14px 30px rgba(120, 20, 5, .28), 0 3px 8px rgba(120, 20, 5, .18);
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+  animation: floating-assistant-pulse 2.4s ease-in-out infinite;
+}
+.floating-assistant:hover {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 18px 36px rgba(120, 20, 5, .34), 0 4px 10px rgba(120, 20, 5, .2);
+}
+.floating-assistant-close {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  height: 22px;
+  width: 22px;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  background: var(--danger);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .22);
+}
+@keyframes floating-assistant-pulse {
+  0%, 100% { box-shadow: 0 14px 30px rgba(120, 20, 5, .28), 0 3px 8px rgba(120, 20, 5, .18), 0 0 0 0 rgba(234, 78, 36, .35); }
+  50% { box-shadow: 0 14px 30px rgba(120, 20, 5, .28), 0 3px 8px rgba(120, 20, 5, .18), 0 0 0 10px rgba(234, 78, 36, 0); }
 }

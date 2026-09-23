@@ -134,15 +134,27 @@ export class AnalysisService {
       order: { recommendations: { priority: 'ASC' } },
     });
     if (!run) throw new DomainException(404, 'ANALYSIS_NOT_FOUND', 'Analysis was not found.');
+    // The `recommendations` table only stores productId/productName (see analyze() above);
+    // the richer RM-facing facts (eligibility, fee, talking points) live only in the raw
+    // Agent response, so read them back from there by matching on priority.
+    const payloadRecs = (run.responsePayload as { recommendations?: Array<{ priority: number; product?: { eligibility?: string | null; feeOrRate?: string | null; talkingPoints?: string[] } | null }> } | null)?.recommendations ?? [];
     return {
       ...this.summary(run),
       analysis: run.responsePayload,
-      recommendations: run.recommendations?.map((item) => ({
-        id: item.id, priority: item.priority, type: item.type, title: item.title,
-        description: item.description, confidence: Number(item.confidence),
-        product: item.productId ? { id: item.productId, name: item.productName } : null,
-        reasons: item.reasons, script: item.suggestedScript, evidence: item.evidence,
-      })) ?? [],
+      recommendations: run.recommendations?.map((item) => {
+        const productFacts = payloadRecs.find((rec) => rec.priority === item.priority)?.product;
+        return {
+          id: item.id, priority: item.priority, type: item.type, title: item.title,
+          description: item.description, confidence: Number(item.confidence),
+          product: item.productId ? {
+            id: item.productId, name: item.productName,
+            eligibility: productFacts?.eligibility ?? null,
+            feeOrRate: productFacts?.feeOrRate ?? null,
+            talkingPoints: productFacts?.talkingPoints ?? [],
+          } : null,
+          reasons: item.reasons, script: item.suggestedScript, evidence: item.evidence,
+        };
+      }) ?? [],
     };
   }
 

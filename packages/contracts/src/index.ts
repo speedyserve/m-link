@@ -51,7 +51,14 @@ export const recommendationSchema = z.object({
   description: z.string().optional().default(''),
   confidence: z.number().min(0).max(1),
   product: z
-    .object({ id: z.string().min(1), name: z.string().min(1) })
+    .object({
+      id: z.string().min(1), name: z.string().min(1),
+      // RM-facing product facts (eligibility/fee, ready-to-say talking points) so the RM
+      // doesn't have to memorise every product's rules — see MLinkProduct on the Agent.
+      eligibility: z.string().nullable().optional(),
+      feeOrRate: z.string().nullable().optional(),
+      talkingPoints: z.array(z.string()).default([]),
+    })
     .nullable()
     .optional(),
   reasons: z.array(z.string()).default([]),
@@ -175,6 +182,9 @@ export const nextBestOfferSchema = z.object({
 });
 export type NextBestOffer = z.infer<typeof nextBestOfferSchema>;
 
+export const rbActionGroupSchema = z.enum(['RETENTION', 'OPPORTUNITY']);
+export type RbActionGroup = z.infer<typeof rbActionGroupSchema>;
+
 export const rbQueueItemSchema = z.object({
   customerId: z.string().min(1),
   customerName: z.string().min(1),
@@ -182,12 +192,14 @@ export const rbQueueItemSchema = z.object({
   segment: z.string(),
   priorityScore: z.number(),
   valueScore: z.number(),
+  tav: z.number(),
   churnScore: z.number(),
   churnLabel: churnLabelSchema,
   suggestionCode: suggestionCodeSchema,
   reason: z.string(),
   recommendedAction: z.string(),
   sellAllowed: z.boolean(),
+  actionGroup: rbActionGroupSchema,
 });
 export type RbQueueItem = z.infer<typeof rbQueueItemSchema>;
 

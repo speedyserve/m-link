@@ -17,5 +17,9 @@ export class RmsService {
       throw new DomainException(404, 'RM_NOT_FOUND', 'Relationship manager was not found.');
     }
   }
+
+  findById(id: string) {
+    return this.repository.findOneBy({ id });
+  }
 }
 

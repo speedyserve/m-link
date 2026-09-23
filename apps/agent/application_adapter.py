@@ -3,6 +3,7 @@ into the public M-Link Agent response using the Part D rule engine."""
 
 from __future__ import annotations
 
+from datetime import date
 from uuid import uuid4
 
 from application_client import CustomerContext, window_days
@@ -64,6 +65,11 @@ def _response_period(request: MLinkAnalyzeRequest, context: CustomerContext) -> 
     return None
 
 
+def churn_display(label: str) -> str:
+    """Collapse the 3-tier churn label to the 2-tier Thấp/Cao the RM-facing UI shows."""
+    return label if label == "Thấp" else "Cao"
+
+
 def build_signals(ctx: RuleContext) -> list[MLinkSignal]:
     """Metric-level signals (Part B/C) plus facts of the analysed window."""
     m = ctx.metrics
@@ -73,25 +79,23 @@ def build_signals(ctx: RuleContext) -> list[MLinkSignal]:
     def add(type_: str, title: str, severity: str, confidence: float, description: str) -> None:
         signals.append(MLinkSignal(type=type_, title=title, severity=severity, confidence=confidence, description=description))
 
-    if m.churnLabel == "Cao":
+    # RM-facing severity only ever reads Thấp/Cao (see churn_display), even though the
+    # underlying score keeps 3 internal tiers for the approved MSB formula.
+    if m.churnLabel != "Thấp":
         add("churn_high", "Rủi ro rời bỏ CAO", "high", 0.95,
-            f"Churn Score {format_metric(m, 'churnScore')} (từ 60/100 trở lên là mức Cao); {m.recencyDays} ngày không phát sinh giao dịch; "
-            f"xu hướng CASA {format_metric(m, 'casaTrend')}. Khách có dấu hiệu rõ rệt sẽ rời bỏ ngân hàng — nên gọi giữ chân trước khi tư vấn bán thêm.")
-    elif m.churnLabel == "Trung bình":
-        add("churn_medium", "Rủi ro rời bỏ trung bình", "medium", 0.85,
-            f"Churn Score {format_metric(m, 'churnScore')} (30–59/100 là mức Trung bình); xu hướng CASA {window} ngày {format_metric(m, 'casaTrend')}. "
-            f"Chưa đến mức báo động nhưng nên theo dõi thêm, tránh chào bán dồn dập.")
+            f"Churn Score {format_metric(m, 'churnScore')} (từ 30/100 trở lên là mức Cao); {m.recencyDays} ngày không phát sinh giao dịch; "
+            f"xu hướng CASA {format_metric(m, 'casaTrend')}. Khách có dấu hiệu sẽ rời bỏ ngân hàng — nên gọi giữ chân trước khi tư vấn bán thêm.")
     if m.leverage > LEVERAGE_HIGH:
         add("leverage_high", "Đòn bẩy tài chính cao", "high", 0.97,
             f"Dư nợ vay / tài sản quy đổi = {format_metric(m, 'leverage')} ({format_metric(m, 'loanTotal')} / {format_metric(m, 'tav')}), "
             f"vượt ngưỡng an toàn 70%. Khách đang vay nhiều so với tài sản đang có — không nên chào thêm sản phẩm vay, ưu tiên bảo vệ khả năng trả nợ.")
     if m.cur > CUR_HIGH:
         add("cur_high", "Tỷ lệ dùng hạn mức thẻ cao", "high", 0.93,
-            f"CUR {window} ngày = {format_metric(m, 'cur')} trên hạn mức {format_metric(m, 'creditLimit')}, vượt ngưỡng 80%. "
+            f"Tỷ lệ dùng hạn mức thẻ {window} ngày = {format_metric(m, 'cur')} trên hạn mức {format_metric(m, 'creditLimit')}, vượt ngưỡng 80%. "
             f"Khách đang dùng gần hết hạn mức thẻ, có thể đang gặp áp lực tài chính — cân nhắc tư vấn cơ cấu nợ/trả góp 0% thay vì chào vay mới.")
     elif m.cur > 0.5:
         add("cur_elevated", "Dùng hạn mức thẻ đáng chú ý", "medium", 0.8,
-            f"CUR {window} ngày = {format_metric(m, 'cur')}, trên mức 50% hạn mức nhưng chưa tới ngưỡng cảnh báo 80%. Nên theo dõi thêm ở kỳ tới.")
+            f"Tỷ lệ dùng hạn mức thẻ {window} ngày = {format_metric(m, 'cur')}, trên mức 50% hạn mức nhưng chưa tới ngưỡng cảnh báo 80%. Nên theo dõi thêm ở kỳ tới.")
     if m.recencyDays > RECENCY_DORMANT:
         add("dormant", "Không giao dịch lâu ngày", "high", 0.9,
             f"{m.recencyDays} ngày kể từ giao dịch gần nhất, vượt ngưỡng 90 ngày được coi là không hoạt động (dormant). "
@@ -146,7 +150,8 @@ def build_signals(ctx: RuleContext) -> list[MLinkSignal]:
             add("card_spend_high_in_period", "Chi tiêu thẻ cao trong kỳ", "medium", 0.85,
                 f"Chi tiêu thẻ {format_period(period, 'cardSpend')} trong kỳ {period.label}, "
                 f"quy về tháng {format_period(period, 'cardSpendMonthly')} trên hạn mức {format_metric(m, 'creditLimit')} (từ 50% hạn mức trở lên). "
-                f"Khách chi tiêu nhiều và vẫn trả nợ tốt (CUR chưa vượt 80%) — phù hợp đề xuất nâng hạng thẻ hoàn tiền cao hơn.")
+                f"Khách chi tiêu nhiều và vẫn trả nợ tốt (tỷ lệ dùng hạn mức thẻ chưa vượt 80%) — có thể giới thiệu dòng thẻ hoàn tiền phù hợp; "
+                f"không mời nâng hạn mức vì MSB chủ động xét duyệt.")
     return signals
 
 
@@ -155,8 +160,7 @@ def _headline(ctx: RuleContext) -> str:
     window = f"Kỳ phân tích {ctx.period.label}. " if ctx.period else ""
     return (
         f"{window}Khách hàng {ctx.customer.get('tier') or m.tierLabel}, hành vi {m.behaviourLabel.lower()}, "
-        f"khẩu vị rủi ro thực tế {m.riskAppetiteLabel.lower()}, Priority Score {m.priorityScore:.1f}/100 "
-        f"(cửa sổ {m.windowDays} ngày), rủi ro rời bỏ {m.churnLabel.lower()}."
+        f"khẩu vị rủi ro thực tế {m.riskAppetiteLabel.lower()}, rủi ro rời bỏ {churn_display(m.churnLabel).lower()}."
     )
 
 
@@ -171,19 +175,28 @@ def _recommendation(index: int, hit: RuleHit, ctx: RuleContext, script: str) -> 
     period_reference = f"period_summary:{m.customerId}:{ctx.period.from_date}..{ctx.period.to_date}" if ctx.period else None
     evidence = [
         MLinkEvidence(
-            type="period" if item.source == "period_summary" else "metric",
+            type="interaction" if item.source == "interaction" else "period" if item.source == "period_summary" else "metric",
             title=evidence_label(item.field),
             description=(
-                f"{evidence_label(item.field)}: {item.value} (kỳ {ctx.period.label})"
-                if item.source == "period_summary" and ctx.period
+                item.value if item.source == "interaction"
+                else f"{evidence_label(item.field)}: {item.value} (kỳ {ctx.period.label})" if item.source == "period_summary" and ctx.period
                 else f"{evidence_label(item.field)}: {item.value} (tính đến ngày {m.asOfDate})"
             ),
             source=item.source,
-            sourceReference=period_reference if item.source == "period_summary" else f"customer_metrics:{m.customerId}:{m.asOfDate}",
+            sourceReference=(
+                period_reference if item.source == "period_summary"
+                else f"customer_interactions:{m.customerId}" if item.source == "interaction"
+                else f"customer_metrics:{m.customerId}:{m.asOfDate}"
+            ),
         )
         for item in hit.evidence
     ]
-    reasons = [hit.rule.rationale] + [f"{evidence_label(item.field)}: {item.value}{evidence_hint(item.field)}" for item in hit.evidence]
+    # Interaction-sourced evidence is already a full sentence (see _health_inquiry_evidence);
+    # metric/period evidence still reads as "Label: value" plus its plain-language hint.
+    reasons = [hit.rule.rationale] + [
+        item.value if item.source == "interaction" else f"{evidence_label(item.field)}: {item.value}{evidence_hint(item.field)}"
+        for item in hit.evidence
+    ]
     if len(hit.products) > 1:
         reasons.append("Sản phẩm thay thế: " + "; ".join(p.name for p in hit.products[1:]))
     return MLinkRecommendation(
@@ -191,7 +204,12 @@ def _recommendation(index: int, hit: RuleHit, ctx: RuleContext, script: str) -> 
         # "—" in the catalogue means no published rate/fee; don't show it as text.
         description=(f"{product.summary} {'' if product.rate_or_fee == '—' else product.rate_or_fee}" if product else hit.rule.rationale).strip(),
         confidence=_confidence(hit, ctx),
-        product=MLinkProduct(id=product.product_id, name=product.name) if product else None,
+        product=MLinkProduct(
+            id=product.product_id, name=product.name,
+            eligibility=product.eligibility or None,
+            feeOrRate=None if product.rate_or_fee == "—" else product.rate_or_fee,
+            talkingPoints=product.talking_points,
+        ) if product else None,
         reasons=reasons, evidence=evidence, script=script,
     )
 
@@ -201,6 +219,46 @@ def _script_for(hit: RuleHit, consultation: dict) -> str:
     point = next((p for p in consultation.get("main_points", []) if p.get("title") == product_name), None)
     talking = (point or {}).get("talking_point") or hit.rule.title
     return " ".join(part for part in [consultation.get("opening", ""), talking, consultation.get("closing", "")] if part)
+
+
+# Business loans move fast (short cycles, thin cash buffers), so the RM only needs a
+# 2-day heads-up; unsecured/mortgage loans get the longer 5-day window the workbook's
+# collections practice uses. Overdraft has no fixed due date to remind against, so it's
+# left out on purpose.
+_LOAN_REMINDER_DAYS = [
+    (("kinh doanh",), 2),
+    (("tín chấp", "thế chấp", "mua nhà"), 5),
+]
+
+
+def _loan_reminder_note(loans: list[dict], as_of_date: str) -> str:
+    """Built from real loan due dates (see customer_loans on the Application side), not
+    invented — only fires when a loan's due date actually falls inside its reminder window."""
+    try:
+        today = date.fromisoformat(str(as_of_date)[:10])
+    except ValueError:
+        return ""
+    notes: list[str] = []
+    for loan in loans:
+        due_raw = loan.get("nextDueDate")
+        loan_type = str(loan.get("loanType") or "")
+        if not due_raw or not loan_type:
+            continue
+        try:
+            due = date.fromisoformat(str(due_raw)[:10])
+        except ValueError:
+            continue
+        loan_type_lower = loan_type.lower()
+        reminder_days = next((days for keywords, days in _LOAN_REMINDER_DAYS if any(kw in loan_type_lower for kw in keywords)), None)
+        if reminder_days is None:
+            continue
+        days_left = (due - today).days
+        if 0 <= days_left <= reminder_days:
+            when = "hôm nay" if days_left == 0 else f"còn {days_left} ngày nữa"
+            notes.append(f"{loan_type} đến hạn trả nợ ngày {due.strftime('%d/%m/%Y')} ({when}) — nhắc khách chuẩn bị nguồn tiền để trả đúng hạn.")
+    if not notes:
+        return ""
+    return "Nhắc thêm: " + " ".join(notes)
 
 
 def to_mlink_response(request: MLinkAnalyzeRequest, context: CustomerContext) -> MLinkAnalysisResponse:
@@ -223,7 +281,7 @@ def to_mlink_response(request: MLinkAnalyzeRequest, context: CustomerContext) ->
 
     ctx = RuleContext(
         metrics=context.metrics, holdings=context.holdings, next_best_offers=context.next_best_offers,
-        customer=context.customer, deposits=context.deposits,
+        customer=context.customer, deposits=context.deposits, interactions=context.interactions,
         period=PeriodFacts.from_summary(context.period_summary),
     )
     hits = evaluate(ctx)
@@ -237,6 +295,9 @@ def to_mlink_response(request: MLinkAnalyzeRequest, context: CustomerContext) ->
             rationale=hit.rule.rationale,
             evidence="; ".join(f"{item.field}={item.value}" for item in hit.evidence),
             rec_type=hit.rule.rec_type,
+            rate_or_fee="" if not hit.primary_product or hit.primary_product.rate_or_fee == "—" else hit.primary_product.rate_or_fee,
+            customer_benefits=hit.primary_product.talking_points if hit.primary_product else [],
+            alt_products=[p.name for p in hit.products[1:]],
         )
         for hit in hits
     ]
@@ -244,8 +305,13 @@ def to_mlink_response(request: MLinkAnalyzeRequest, context: CustomerContext) ->
         str(context.customer.get("fullName") or request.customerId), str(context.customer.get("tier") or ctx.metrics.tierLabel),
         headline, items, period_label=ctx.period.label if ctx.period else "", gender=str(context.customer.get("gender") or ""),
     )
+    loan_reminder = _loan_reminder_note(context.loans, ctx.metrics.asOfDate)
     recommendations = [
-        _recommendation(index, hit, ctx, _script_for(hit, consultation)) for index, hit in enumerate(hits, start=1)
+        _recommendation(
+            index, hit, ctx,
+            f"{_script_for(hit, consultation)}\n\n{loan_reminder}" if loan_reminder else _script_for(hit, consultation),
+        )
+        for index, hit in enumerate(hits, start=1)
     ]
 
     if ctx.metrics.churnLabel == "Cao":

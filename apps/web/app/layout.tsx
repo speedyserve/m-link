@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
+import { FloatingAssistant } from '@/components/floating-assistant';
 
 // MSB's own site uses Inter; the Vietnamese subset is required for correct diacritics.
 const inter = Inter({
@@ -23,7 +24,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="vi" className={inter.variable}>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <FloatingAssistant/>
+        </Providers>
       </body>
     </html>
   );

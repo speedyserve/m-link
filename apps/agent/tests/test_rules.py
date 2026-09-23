@@ -93,7 +93,7 @@ def test_under_penetrated_uses_next_best_offer_rank_order():
 def test_casa_surge_without_bond_offers_cd_and_unit_linked_for_balanced_appetite():
     hits = evaluate(_ctx(make_context(make_metrics(casaTrend=0.16, riskAppetiteLabel="Cân bằng"))))
     hit = next(h for h in hits if h.rule.code == "CASA_SURGE_NO_BOND")
-    assert [p.product_id for p in hit.products] == ["CD_MSB", "BANCA_PRU_INVEST"]
+    assert [p.product_id for p in hit.products] == ["CD_MSB", "INV_FUND_CERT_RB", "BANCA_PRU_INVEST"]
 
 
 def test_casa_surge_with_bond_held_does_not_fire():
@@ -185,7 +185,7 @@ def test_casa_drop_in_period_ignores_a_mild_fall():
     assert "CASA_DROP_IN_PERIOD" not in codes(evaluate(ctx))
 
 
-def test_card_spend_high_in_period_offers_an_upgrade_when_utilisation_is_safe():
+def test_card_spend_high_in_period_offers_a_cashback_card_when_utilisation_is_safe():
     ctx = _ctx(make_context(
         make_metrics(creditLimit="100000000.00", cur=0.2),
         period_summary=make_period_summary(card_spend=60_000_000, card_spend_days=18),
@@ -193,6 +193,10 @@ def test_card_spend_high_in_period_offers_an_upgrade_when_utilisation_is_safe():
     hits = evaluate(ctx)
     hit = next(h for h in hits if h.rule.code == "CARD_SPEND_HIGH_IN_PERIOD")
     assert hit.primary_product.product_id == "CARD_VISA_SIGNATURE"
+    assert "nguồn chi tiêu dự phòng" in " ".join(hit.primary_product.talking_points).lower()
+    assert "thẻ đang dùng gặp sự cố" in " ".join(hit.primary_product.talking_points).lower()
+    assert "nâng hạn mức" not in hit.rule.title.lower()
+    assert "tăng hạn mức" not in hit.rule.title.lower()
 
 
 def test_card_spend_high_in_period_does_not_fire_when_utilisation_is_already_high():
@@ -214,7 +218,7 @@ def test_leverage_block_still_applies_to_period_rules():
 
 
 def test_card_spend_high_in_period_needs_a_month_of_data():
-    """A one-week spike must not be extrapolated into a card upgrade."""
+    """A one-week spike must not be extrapolated into a card offer."""
     ctx = _ctx(make_context(
         make_metrics(creditLimit="100000000.00", cur=0.2),
         period_summary=make_period_summary(days=7, active_days=6, card_spend=47_000_000, card_spend_days=3),
@@ -308,16 +312,16 @@ def test_home_loan_prospect_does_not_fire_for_mass_tier():
     assert "HOME_LOAN_PROSPECT" not in codes(evaluate(ctx))
 
 
-def test_consumer_loan_prospect_fires_for_a_loan_free_customer_with_stable_casa():
+def test_credit_card_prospect_fires_for_a_loan_free_customer_with_stable_casa():
     ctx = _ctx(make_context(make_metrics(leverage=0.0, casaTrend=0.02, freq90=50)))
     hits = evaluate(ctx)
-    hit = next(h for h in hits if h.rule.code == "CONSUMER_LOAN_PROSPECT")
-    assert hit.primary_product.product_id == "LOAN_CONSUMER"
+    hit = next(h for h in hits if h.rule.code == "CREDIT_CARD_PROSPECT")
+    assert hit.primary_product.product_id == "CARD_MC_HYBRID"
 
 
-def test_consumer_loan_prospect_does_not_fire_when_casa_is_declining():
+def test_credit_card_prospect_does_not_fire_when_casa_is_declining():
     ctx = _ctx(make_context(make_metrics(leverage=0.0, casaTrend=-0.05, freq90=50)))
-    assert "CONSUMER_LOAN_PROSPECT" not in codes(evaluate(ctx))
+    assert "CREDIT_CARD_PROSPECT" not in codes(evaluate(ctx))
 
 
 def test_family_card_prospect_fires_on_the_behaviour_note_keyword():

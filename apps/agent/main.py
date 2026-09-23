@@ -7,7 +7,8 @@ from fastapi import FastAPI, HTTPException, Request, status
 from application_adapter import to_mlink_response
 from application_client import ApplicationApiClient, ApplicationApiError
 from config import settings
-from models import MLinkAnalyzeRequest
+from generator import generate_assistant_answer
+from models import MLinkAnalyzeRequest, MLinkAssistantRequest
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("mlink.main")
@@ -50,6 +51,19 @@ async def application_analyze_endpoint(payload: MLinkAnalyzeRequest, request: Re
     except Exception:
         logger.exception("Application Agent analysis failed")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Customer analysis could not be completed.")
+
+
+@app.post("/v1/agent/assistant-answer")
+async def assistant_answer_endpoint(payload: MLinkAssistantRequest, request: Request):
+    """Phrases an already-looked-up fact (from the M-Link API) into a natural answer for the
+    RM-facing floating assistant. Not an analysis run — no rule engine involved here."""
+    _verify_inbound_key(request)
+    try:
+        answer = await asyncio.to_thread(generate_assistant_answer, payload.question, payload.facts)
+        return {"answer": answer}
+    except Exception:
+        logger.exception("Assistant answer generation failed")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Assistant answer could not be generated.")
 
 
 if __name__ == "__main__":

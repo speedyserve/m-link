@@ -57,7 +57,7 @@ export function formatDay(isoDate: string, locale: 'vi' | 'en') {
   return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
 }
 
-export function PeriodFilter({ period, dataRange, onChange, locale, t }: { period: Period; dataRange: DataRange; onChange: (next: { from: string; to: string }) => void; locale: 'vi' | 'en'; t: T }) {
+export function PeriodFilter({ period, dataRange, onChange, t }: { period: Period; dataRange: DataRange; onChange: (next: { from: string; to: string }) => void; t: T }) {
   const preset = activePreset(period, dataRange);
   const pick = (days: number) => onChange({ from: addDays(dataRange.last, -(days - 1)) < dataRange.first ? dataRange.first : addDays(dataRange.last, -(days - 1)), to: dataRange.last });
   return <div className="card flex flex-col gap-4 p-4 xl:flex-row xl:items-center xl:justify-between">
@@ -71,7 +71,6 @@ export function PeriodFilter({ period, dataRange, onChange, locale, t }: { perio
     <div className="flex flex-wrap items-center gap-3 text-sm">
       <label className="flex items-center gap-2"><span className="text-navy-500">{t('from')}</span><input type="date" className="field !w-auto !py-1.5" value={period.from} min={dataRange.first} max={period.to} onChange={(event) => event.target.value && onChange({ from: event.target.value, to: period.to })}/></label>
       <label className="flex items-center gap-2"><span className="text-navy-500">{t('to')}</span><input type="date" className="field !w-auto !py-1.5" value={period.to} min={period.from} max={dataRange.last} onChange={(event) => event.target.value && onChange({ from: period.from, to: event.target.value })}/></label>
-      <span className="rounded-full bg-navy-50 px-3 py-1.5 text-xs font-bold text-navy-800">{formatDay(period.from, locale)} → {formatDay(period.to, locale)} · {period.days} {t('daysUnit')}</span>
     </div>
   </div>;
 }

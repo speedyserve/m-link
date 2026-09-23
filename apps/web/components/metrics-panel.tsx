@@ -30,8 +30,11 @@ export const SUGGESTION_TEXT: Record<SuggestionCode, { vi: string; en: string }>
   MAINTAIN: { vi: 'Duy trì chăm sóc định kỳ, theo dõi thêm', en: 'Maintain regular care and monitor' },
 };
 
-export const churnTone = (label: string) => (label === 'Cao' ? 'danger' : label === 'Trung bình' ? 'warn' : 'good') as 'danger' | 'warn' | 'good';
-export const churnText = (label: string, t: T) => (label === 'Cao' ? t('churnHigh') : label === 'Trung bình' ? t('churnMedium') : t('churnLow'));
+// The scoring formula keeps 3 tiers (Thấp/Trung bình/Cao), matching the approved MSB
+// Excel sheet, but the RM-facing UI only ever shows two: anything above "Thấp" reads
+// as "Cao" so the badge stays a simple, actionable thấp/cao call.
+export const churnTone = (label: string) => (label === 'Thấp' ? 'good' : 'danger') as 'danger' | 'good';
+export const churnText = (label: string, t: T) => (label === 'Thấp' ? t('churnLow') : t('churnHigh'));
 
 const pct = (value: number, digits = 1) => `${(value * 100).toFixed(digits)}%`;
 const ratio = (value: number) => (value > 2 ? `${value.toFixed(1)}x` : pct(value));
