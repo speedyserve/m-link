@@ -15,6 +15,7 @@ import {
   Customer,
   CustomerDailyPosition,
   CustomerInteraction,
+  CustomerLoan,
   Deposit,
   NextBestOffer,
   ProductHolding,
@@ -164,7 +165,7 @@ export async function seedDatabase(): Promise<{ customers: number; positions: nu
   if (!AppDataSource.isInitialized) await AppDataSource.initialize();
   await AppDataSource.query(`TRUNCATE recommendation_feedback, recommendation_evidence, recommendations, agent_runs,
     customer_metrics, next_best_offers, product_holdings, customer_daily_positions, customer_interactions,
-    deposits, cards, transactions, accounts, customers, rm_users RESTART IDENTITY CASCADE`);
+    customer_loans, deposits, cards, transactions, accounts, customers, rm_users RESTART IDENTITY CASCADE`);
 
   // The as-of date is the last journal day of the dataset, never the wall clock.
   const asOfDate = msbDataset.manifest.asOfDate;
@@ -192,8 +193,28 @@ export async function seedDatabase(): Promise<{ customers: number; positions: nu
   const accounts: Partial<Account>[] = [];
   const cards: Partial<Card>[] = [];
   const deposits: Partial<Deposit>[] = [];
+  const loans: Partial<CustomerLoan>[] = [];
   const holdings: Partial<ProductHolding>[] = [];
   const offers: Partial<NextBestOffer>[] = [];
+
+  // No repayment-schedule sheet exists in the workbook (only the running daily loan
+  // balance), so the due date is derived deterministically from the customer/loan-type
+  // pair — stable across reseeds, spread over the next 5–90 days from the dataset's
+  // as-of date instead of a single hardcoded offset. Rate/term are MSB reference figures
+  // per loan family (apps/agent/knowledge_base.py has the matching product text), not
+  // per-customer negotiated terms — the workbook has no field for those either.
+  const LOAN_TYPES: Array<{ key: 'loanMortgage' | 'loanAdvance' | 'loanOverdraft' | 'loanUnsecured'; label: string; annualRatePct: string; termMonths: number }> = [
+    { key: 'loanMortgage', label: 'Vay mua nhà', annualRatePct: '8.5000', termMonths: 240 },
+    // LOAN_BUSINESS_CAPITAL in knowledge_base.py: "từ 0,55%/tháng" ≈ 6.6%/năm.
+    { key: 'loanAdvance', label: 'Vay bổ sung vốn kinh doanh', annualRatePct: '6.6000', termMonths: 36 },
+    { key: 'loanOverdraft', label: 'Thấu chi tiêu dùng', annualRatePct: '13.0000', termMonths: 12 },
+    { key: 'loanUnsecured', label: 'Vay tiêu dùng tín chấp', annualRatePct: '14.0000', termMonths: 36 },
+  ];
+  const dueDateOffsetDays = (seed: string): number => {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+    return 5 + (hash % 86); // 5..90 days out
+  };
 
   for (const customer of msbDataset.customers) {
     const cif = customer.cif;
@@ -261,6 +282,22 @@ export async function seedDatabase(): Promise<{ customers: number; positions: nu
       });
     }
 
+    for (const { key, label, annualRatePct, termMonths } of LOAN_TYPES) {
+      const balance = last[key];
+      if (!(balance > 0)) continue;
+      const dueDate = addDays(reference, dueDateOffsetDays(`${cif}-${key}`));
+      // Real data, not another reference assumption: the first journal day this loan
+      // type shows a balance is its disbursement date (mirrors firstFd for deposits).
+      const disbursedFrom = rows.find((row) => row[key] > 0)?.positionDate ?? last.positionDate;
+      const monthlyPaymentEstimate = Math.round(balance / termMonths);
+      loans.push({
+        id: `LOAN-${cif}-${key}`, customerId: cif, loanType: label,
+        principal: money(balance), disbursementDate: disbursedFrom, interestRate: annualRatePct,
+        termMonths, monthlyPaymentEstimate: money(monthlyPaymentEstimate),
+        nextDueDate: dueDate.toISOString().slice(0, 10), status: 'ACTIVE',
+      });
+    }
+
     for (const [productCode, held] of Object.entries(msbDataset.productHoldings[cif] ?? {})) {
       holdings.push({ customerId: cif, productCode, held: held === 1 });
     }
@@ -274,6 +311,7 @@ export async function seedDatabase(): Promise<{ customers: number; positions: nu
   await insertChunked(BankTransaction, transactions, 500);
   await insertChunked(Card, cards, 200);
   await insertChunked(Deposit, deposits, 200);
+  await insertChunked(CustomerLoan, loans, 200);
   await insertChunked(ProductHolding, holdings, 500);
   await insertChunked(NextBestOffer, offers, 500);
 

@@ -6,6 +6,15 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class MLinkAssistantRequest(BaseModel):
+    """RM's free-text question plus the exact facts the M-Link API already looked up (customer
+    count, churn count, transaction rows, ...). The LLM only phrases these facts naturally —
+    it is not allowed to invent numbers of its own."""
+
+    question: str
+    facts: str
+
+
 class MLinkAnalyzeRequest(BaseModel):
     """Stable request sent by the M-Link Application backend.
 
@@ -99,6 +108,11 @@ class MLinkEvidence(BaseModel):
 class MLinkProduct(BaseModel):
     id: str
     name: str
+    # RM-facing product facts so the RM doesn't have to memorise every product's rules —
+    # eligibility/fee and ready-to-say talking points, straight from the MSB catalogue.
+    eligibility: str | None = None
+    feeOrRate: str | None = None
+    talkingPoints: list[str] = []
 
 
 class MLinkRecommendation(BaseModel):

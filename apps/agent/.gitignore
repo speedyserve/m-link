@@ -8,3 +8,7 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+
+# GreenNode AgentBase IAM credentials and token cache
+.greennode.json
+.agentbase/

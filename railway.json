@@ -5,7 +5,7 @@
     "dockerfilePath": "apps/api/Dockerfile"
   },
   "deploy": {
-    "preDeployCommand": "node apps/api/dist/database/run-migrations.js",
+    "preDeployCommand": "pnpm --filter @mlink/api migration:run:prod",
     "startCommand": "node apps/api/dist/main.js",
     "healthcheckPath": "/health/ready",
     "healthcheckTimeout": 100,

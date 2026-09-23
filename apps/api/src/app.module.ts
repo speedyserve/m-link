@@ -21,6 +21,7 @@ import { MetricsService } from './modules/metrics/metrics.service';
 import { AGENT_CLIENT } from './modules/agent/agent.types';
 import { MockAgentClient } from './modules/agent/mock-agent.client';
 import { GreenNodeAgentClient } from './modules/agent/greennode-agent.client';
+import { AssistantAgentClient } from './modules/agent/assistant-agent.client';
 
 @Module({
   imports: [
@@ -36,7 +37,7 @@ import { GreenNodeAgentClient } from './modules/agent/greennode-agent.client';
   ],
   providers: [
     RmsService, CustomersService, DashboardService, AnalysisService, RecommendationsService, MetricsService,
-    InternalAgentGuard, MockAgentClient, GreenNodeAgentClient,
+    InternalAgentGuard, MockAgentClient, GreenNodeAgentClient, AssistantAgentClient,
     {
       provide: AGENT_CLIENT,
       inject: [MockAgentClient, GreenNodeAgentClient],

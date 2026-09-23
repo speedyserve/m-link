@@ -1,8 +1,5 @@
 .env
-.env.example
 .venv
-tests
-tools
 __pycache__
 *.py[cod]
 .pytest_cache
@@ -12,3 +9,9 @@ Dockerfile
 dist
 build
 *.egg-info
+.env*
+!.env.example
+.greennode.json
+.agentbase
+tests
+.agentbase/

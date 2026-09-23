@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AnalysisPeriod, CustomerMetrics, CustomerMetricsAsOf, FlowCategory, PeriodSummary, ProductHolding } from '@mlink/contracts';
 import { FLOW_CATEGORIES } from '@mlink/contracts';
-import { AlertOctagon, AlertTriangle, ArrowLeft, ArrowLeftRight, Bot, BrainCircuit, CheckCircle2, Clock3, CreditCard, Landmark, Lightbulb, MessageSquareText, PieChart, PiggyBank, Sparkles, TrendingUp, Wallet } from 'lucide-react';
+import { AlertOctagon, AlertTriangle, ArrowLeft, ArrowLeftRight, Bot, BrainCircuit, CalendarClock, CheckCircle2, Clock3, CreditCard, Landmark, Lightbulb, MessageSquareText, PieChart, PiggyBank, Sparkles, TrendingUp, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -16,7 +16,7 @@ import { messages, type MessageKey } from '@/lib/i18n';
 import { Avatar, Badge, Empty, ErrorBox, Tabs } from '@/components/ui';
 import { api, money } from '@/lib/api';
 
-type Customer = { id: string; customerCode: string; fullName: string; segment: string; tier: string; branch: string | null; relationshipStatus: string; customerSince: string; dateOfBirth: string; email: string; phone: string; occupation: string | null; declaredBehaviour: string | null; declaredRiskAppetite: string | null; churnWarning: boolean; behaviourNote: string | null; financialSummary: { totalAssets: string; casa: string; deposits: string; creditLimit: string }; metrics: CustomerMetrics | null; holdings: ProductHolding[] };
+type Customer = { id: string; customerCode: string; fullName: string; segment: string; tier: string; branch: string | null; relationshipStatus: string; customerSince: string; dateOfBirth: string; email: string; phone: string; occupation: string | null; declaredBehaviour: string | null; declaredRiskAppetite: string | null; churnWarning: boolean; behaviourNote: string | null; financialSummary: { totalAssets: string; casa: string; deposits: string; creditLimit: string }; metrics: CustomerMetrics | null; holdings: ProductHolding[]; loans: Array<{ loanType: string; principal: string; disbursementDate: string; interestRate: string; termMonths: number; monthlyPaymentEstimate: string; nextDueDate: string; status: string }>; priorityRank: number | null; priorityRankOf: number };
 type Account = { id: string; accountNumber: string; type: string; currency: string; balance: string; availableBalance: string; status: string };
 type Transaction = { id: string; transactionCode: string; type: string; category: string; amount: string; description: string; merchant: string | null; transactionAt: string; balanceAfter: string };
 type Card = { id: string; maskedNumber: string; type: string; creditLimit: string; availableLimit: string; status: string; expiryDate: string };
@@ -28,7 +28,7 @@ type History = { id: string; provider: string; status: string; createdAt: string
 type AnalysisData = {
   id: string; provider: string; status: string; latencyMs: number | null; createdAt: string; period: AnalysisPeriod | null; periodApplied: boolean | null;
   analysis: null | { summary: { relationshipStatus: string; opportunityScore: number; overview: string }; signals: Array<{ type: string; title: string; severity: string; confidence: number; description: string }>; guardrail: { sellAllowed: boolean; reason: string | null } };
-  recommendations: Array<{ id: string; priority: number; title: string; description: string; confidence: number; product: { id: string; name: string } | null; reasons: string[]; script: string; evidence: Array<{ id: string; title: string; description: string; sourceReference: string | null }> }>;
+  recommendations: Array<{ id: string; priority: number; title: string; description: string; confidence: number; product: { id: string; name: string; eligibility: string | null; feeOrRate: string | null; talkingPoints: string[] } | null; reasons: string[]; script: string; evidence: Array<{ id: string; title: string; description: string; sourceReference: string | null }> }>;
 };
 type TxFilters = { type: '' | 'CREDIT' | 'DEBIT'; category: '' | FlowCategory; page: number };
 
@@ -45,6 +45,7 @@ const tabs = [
   { id: 'transactions', icon: ArrowLeftRight },
   { id: 'cards', icon: CreditCard },
   { id: 'deposits', icon: Landmark },
+  { id: 'loans', icon: CalendarClock },
   { id: 'interactions', icon: MessageSquareText },
   { id: 'aiInsights', icon: BrainCircuit },
 ] as const;
@@ -122,13 +123,13 @@ function CustomerDetail() {
             <div>
               <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-black text-white md:text-3xl">{c.fullName}</h1><Badge tone="good">{c.tier}</Badge>{m && <Badge tone={churnTone(m.churnLabel)}>{churnText(m.churnLabel, t)}</Badge>}</div>
               <p className="mt-1 text-sm font-medium text-white/85">CIF {c.customerCode} · {c.branch ?? '—'} · {t('customerSince')} {formatDay(c.customerSince.slice(0, 10), locale)}</p>
-              <div className="mt-2 flex flex-wrap gap-2">{c.declaredBehaviour && <Badge>{c.declaredBehaviour}</Badge>}{c.declaredRiskAppetite && <Badge>{c.declaredRiskAppetite}</Badge>}</div>
             </div>
           </div>
           <div className="flex items-center gap-5">
             {m && <div className="rounded-xl border border-white/60 bg-white/90 px-4 py-3 text-right backdrop-blur">
               <div className="text-[11px] font-bold uppercase tracking-wider text-navy-500">{t('priorityScore')}</div>
               <div className="text-4xl font-black leading-tight text-orange-600">{m.priorityScore.toFixed(1)}</div>
+              {c.priorityRank && <div className="text-xs font-extrabold text-navy-800">{locale === 'vi' ? `Hạng #${c.priorityRank}/${c.priorityRankOf}` : `Rank #${c.priorityRank}/${c.priorityRankOf}`} <span className="font-medium text-navy-500">{locale === 'vi' ? 'trong danh mục RM' : 'in RM portfolio'}</span></div>}
               {asOf && <div className="flex items-center justify-end gap-1 text-[11px] text-navy-500">{t('computedAt')} {formatDay(asOf.asOfDate, locale)}{asOf.insufficientHistory && <AlertTriangle size={12} className="text-orange-600" aria-label={t('insufficientHistory')}/>}</div>}
             </div>}
             <button disabled={!ready || analyze.isPending} onClick={() => analyze.mutate()} className="button shrink-0"><Sparkles size={18}/>{analyze.isPending ? t('analyzing') : t('analyze')}</button>
@@ -144,7 +145,7 @@ function CustomerDetail() {
         </div>;
       })}</div>
     </section>
-    {period && dataRange.data && <PeriodFilter period={period} dataRange={dataRange.data} onChange={setPeriod} locale={locale} t={t}/>}
+    {period && dataRange.data && <PeriodFilter period={period} dataRange={dataRange.data} onChange={setPeriod} t={t}/>}
     {asOf?.insufficientHistory && <div className="card flex items-center gap-2 border-orange-300 bg-orange-50 p-3 text-sm text-orange-600"><AlertTriangle size={16}/>{t('insufficientHistory')}</div>}
     {analyze.isPending && <Analyzing locale={locale}/>} {analyze.isError && <ErrorBox message={analyze.error.message}/>}
     <Tabs items={tabs.map((item) => ({ ...item, label: t(item.id) }))} value={tab} onChange={setTab}/>
@@ -152,9 +153,54 @@ function CustomerDetail() {
     {tab === 'transactions' && <Transactions page={transactions.data} filters={txFilters} onChange={setTxFilters} loading={transactions.isLoading} locale={locale} t={t}/>}
     {tab === 'cards' && <Cards rows={cards.data ?? []} summary={summary.data} locale={locale} t={t}/>}
     {tab === 'deposits' && <Deposits rows={deposits.data ?? []} summary={summary.data} locale={locale} t={t}/>}
+    {tab === 'loans' && <LoanDueCard loans={c.loans} locale={locale} t={t}/>}
     {tab === 'interactions' && <Interactions rows={interactionsInPeriod} empty={t('empty')} locale={locale} t={t}/>}
     {tab === 'aiInsights' && <AiInsights data={analysis.data} histories={history.data ?? []} selected={selectedAnalysis} onSelect={setSelectedAnalysis} period={period} onReanalyze={() => analyze.mutate()} reanalyzing={analyze.isPending} locale={locale} t={t} rmId={rmId}/>}
   </>;
+}
+
+function LoanDueCard({ loans, locale, t }: { loans: Customer['loans']; locale: Locale; t: T }) {
+  if (!loans.length) return <Empty message={t('empty')}/>;
+  const now = Date.now();
+  const soonDays = 14;
+  return <div className="grid gap-5 lg:grid-cols-2 [&>*]:min-w-0">
+    {loans.map((loan) => {
+      const daysLeft = Math.ceil((new Date(`${loan.nextDueDate}T00:00:00Z`).getTime() - now) / 86_400_000);
+      const soon = daysLeft <= soonDays;
+      const rows: Array<[string, string]> = [
+        [locale === 'vi' ? 'Dư nợ hiện tại' : 'Outstanding balance', money(loan.principal, locale)],
+        [locale === 'vi' ? 'Lãi suất tham khảo' : 'Reference rate', `${Number(loan.interestRate).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US')}%/năm`],
+        [locale === 'vi' ? 'Kỳ hạn' : 'Term', locale === 'vi' ? `${loan.termMonths} tháng` : `${loan.termMonths} months`],
+        [locale === 'vi' ? 'Ngày giải ngân' : 'Disbursed', formatDay(loan.disbursementDate, locale)],
+        [locale === 'vi' ? 'Trả góp ước tính/kỳ' : 'Est. payment/period', money(loan.monthlyPaymentEstimate, locale)],
+      ];
+      return <div key={loan.loanType} className="card overflow-hidden">
+        <div className="card-head">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-orange-50 text-orange-600"><CalendarClock size={18}/></div>
+              <h2 className="text-base font-extrabold">{loan.loanType}</h2>
+            </div>
+            <Badge tone={loan.status === 'ACTIVE' ? 'good' : 'neutral'}>{loan.status === 'ACTIVE' ? (locale === 'vi' ? 'Đang vay' : 'Active') : loan.status}</Badge>
+          </div>
+        </div>
+        <dl className="divide-y divide-navy-100 text-sm">
+          {rows.map(([label, value]) => <div key={label} className="flex items-center justify-between gap-3 px-5 py-2.5"><dt className="text-navy-500">{label}</dt><dd className="font-semibold text-navy-800">{value}</dd></div>)}
+          <div className={`flex items-center justify-between gap-3 px-5 py-3 ${soon ? 'bg-red-50' : 'bg-navy-50'}`}>
+            <dt className={`font-bold ${soon ? 'text-red-600' : 'text-navy-800'}`}>{locale === 'vi' ? 'Ngày cần trả tiếp theo' : 'Next due date'}</dt>
+            <dd className="text-right">
+              <div className={`font-extrabold ${soon ? 'text-red-600' : 'text-navy-900'}`}>{formatDay(loan.nextDueDate, locale)}</div>
+              <div className={`text-xs ${soon ? 'text-red-500' : 'text-navy-500'}`}>
+                {daysLeft >= 0
+                  ? (locale === 'vi' ? `còn ${daysLeft} ngày` : `${daysLeft} days left`)
+                  : (locale === 'vi' ? 'đã quá hạn' : 'overdue')}
+              </div>
+            </dd>
+          </div>
+        </dl>
+      </div>;
+    })}
+  </div>;
 }
 
 function Analyzing({ locale }: { locale: Locale }) {
@@ -301,8 +347,23 @@ function AiInsights({ data, histories, selected, onSelect, period, onReanalyze, 
     </div>
     {care&&<div className="card border-red-300 bg-red-50 p-6"><div className="flex items-center gap-3 text-red-800"><AlertOctagon size={28}/><div><div className="label !text-red-700">{t('careFirst')}</div><h2 className="text-2xl font-black">{t('doNotSell')}</h2></div></div><p className="mt-4 font-semibold text-red-900">{analysis.guardrail.reason}</p></div>}
     {noAction&&<div className="card border-emerald-200 bg-emerald-50/70 p-6"><div className="flex items-center gap-3 text-success"><CheckCircle2 size={28}/><h2 className="text-2xl font-black">{t('noAction')}</h2></div><p className="mt-3 text-navy-500">{analysis.summary.overview}</p><p className="mt-2 font-bold">{t('doNotDisturb')}</p></div>}
-    <div className="card p-6"><div className="flex items-start justify-between gap-4"><div><div className="label">{t('summary')}</div><h2 className="mt-2 text-xl font-extrabold">{RELATIONSHIP_STATUS[analysis.summary.relationshipStatus]?.[locale] ?? analysis.summary.relationshipStatus.replaceAll('_',' ')}</h2></div><div className="grid h-16 w-16 place-items-center rounded-full bg-orange-50 text-xl font-black text-orange-600">{Math.round(analysis.summary.opportunityScore)}</div></div><p className="mt-4 text-navy-500">{analysis.summary.overview}</p></div>
-    {!!analysis.signals.length&&<div className="card p-6"><h2 className="font-extrabold">{t('signals')}</h2><div className="mt-4 grid gap-3 md:grid-cols-2">{analysis.signals.map(s=><div key={s.type} className="rounded-xl border border-navy-100 p-4"><div className="flex justify-between"><b>{s.title}</b><Badge tone={s.severity==='high'?'danger':s.severity==='medium'?'warn':'neutral'}>{s.severity.toUpperCase()}</Badge></div><p className="mt-2 text-sm text-navy-500">{s.description}</p><div className="mt-3 text-xs font-bold text-navy-800">{Math.round(s.confidence*100)}% {t('confidence').toLowerCase()}</div></div>)}</div></div>}
-    {data.recommendations.map(rec=><div className="card overflow-hidden" key={rec.id}><div className="border-b border-navy-100 bg-orange-50 p-5"><div className="label">#{rec.priority} · {t('nextBestAction')}</div><h2 className="mt-2 text-xl font-black">{rec.title}</h2><div className="mt-2 flex gap-2"><Badge tone="good">{Math.round(rec.confidence*100)}% {t('confidence')}</Badge>{rec.product&&<Badge>{rec.product.name}</Badge>}</div></div><div className="space-y-5 p-5"><p className="text-navy-500">{rec.description}</p><div><h3 className="flex items-center gap-2 font-extrabold"><Lightbulb size={17}/>{t('why')}</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-navy-500">{rec.reasons.map(reason=><li key={reason}>{reason}</li>)}</ul></div><details className="rounded-xl border border-navy-100 p-4"><summary className="cursor-pointer font-bold">{t('evidence')}</summary><div className="mt-3 space-y-3">{rec.evidence.map(e=><div key={e.id}><b className="text-sm">{e.title}</b><p className="text-sm text-navy-500">{e.description}</p></div>)}</div></details><div className="flex flex-wrap gap-2 border-t border-navy-100 pt-4">{[[t('useful'),'CONTACTED',true],[t('notRelevant'),'NOT_RELEVANT',false],[t('contacted'),'CONTACTED',null],[t('interested'),'INTERESTED',true],[t('rejected'),'REJECTED',null]].map(([label,status,useful],index)=><button disabled={feedback.isPending} onClick={()=>feedback.mutate({id:rec.id,status:status as string,useful:useful as boolean|null})} className="button secondary !py-2 text-sm" key={`${status}-${index}`}>{label as string}</button>)}</div></div></div>)}
+    <div className="card p-6"><div className="label">{t('summary')}</div><h2 className="mt-2 text-xl font-extrabold">{RELATIONSHIP_STATUS[analysis.summary.relationshipStatus]?.[locale] ?? analysis.summary.relationshipStatus.replaceAll('_',' ')}</h2><p className="mt-4 text-navy-500">{analysis.summary.overview}</p></div>
+    {!!analysis.signals.length&&<div className="card p-6"><h2 className="font-extrabold">{t('signals')}</h2><div className="mt-4 grid gap-3 md:grid-cols-2">{analysis.signals.map(s=><div key={s.type} className="rounded-xl border border-navy-100 p-4"><div className="flex justify-between"><b>{s.title}</b><Badge tone={s.severity==='high'?'danger':s.severity==='medium'?'warn':'neutral'}>{s.severity==='high'?t('signalUrgencyHigh'):s.severity==='medium'?t('signalUrgencyMedium'):t('signalUrgencyLow')}</Badge></div><p className="mt-2 text-sm text-navy-500">{s.description}</p><div className="mt-3 text-xs font-bold text-navy-800">{Math.round(s.confidence*100)}% {t('confidence').toLowerCase()}</div></div>)}</div></div>}
+    {data.recommendations.map(rec=><div className="card overflow-hidden" key={rec.id}><div className="border-b border-navy-100 bg-orange-50 p-5"><div className="label">#{rec.priority} · {t('nextBestAction')}</div><h2 className="mt-2 text-xl font-black">{rec.title}</h2><div className="mt-2 flex gap-2"><Badge tone="good">{Math.round(rec.confidence*100)}% {t('confidence')}</Badge>{rec.product&&<Badge>{rec.product.name}</Badge>}</div></div><div className="space-y-5 p-5"><p className="text-navy-500">{rec.description}</p>
+      {rec.product&&(rec.product.eligibility||rec.product.feeOrRate||rec.product.talkingPoints.length>0)&&<div className="rounded-xl border border-navy-100 bg-navy-50 p-4">
+        <h3 className="flex items-center gap-2 font-extrabold"><CreditCard size={16}/>{locale==='vi'?`Thông tin sản phẩm — ${rec.product.name}`:`Product facts — ${rec.product.name}`}</h3>
+        <dl className="mt-3 space-y-2 text-sm">
+          {rec.product.eligibility&&<div><dt className="inline font-bold text-navy-800">{locale==='vi'?'Điều kiện: ':'Eligibility: '}</dt><dd className="inline text-navy-500">{rec.product.eligibility}</dd></div>}
+          {rec.product.feeOrRate&&<div><dt className="inline font-bold text-navy-800">{locale==='vi'?'Phí/lãi suất: ':'Fee/rate: '}</dt><dd className="inline text-navy-500">{rec.product.feeOrRate}</dd></div>}
+        </dl>
+        {rec.product.talkingPoints.length>0&&<div className="mt-3"><div className="text-xs font-bold uppercase tracking-wider text-navy-500">{locale==='vi'?'Gợi ý trao đổi với khách':'Talking points'}</div><ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm text-navy-500">{rec.product.talkingPoints.map(point=><li key={point}>{point}</li>)}</ul></div>}
+      </div>}
+      <div><h3 className="flex items-center gap-2 font-extrabold"><Lightbulb size={17}/>{t('why')}</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-navy-500">{rec.reasons.map(reason=><li key={reason}>{reason}</li>)}</ul></div>
+      {rec.script&&<div className="rounded-xl border border-orange-100 bg-orange-50 p-4">
+        <h3 className="flex items-center gap-2 font-extrabold text-orange-900"><MessageSquareText size={17}/>{t('suggestedScript')}</h3>
+        <p className="mt-1 text-xs text-orange-800">{locale==='vi'?'Câu gợi ý để trao đổi trực tiếp với khách — có thể đọc gần như nguyên văn.':'A ready-to-say script for talking to the customer directly.'}</p>
+        <p className="mt-2 whitespace-pre-line text-sm italic text-navy-800">&ldquo;{rec.script}&rdquo;</p>
+      </div>}
+      <div className="flex flex-wrap gap-2 border-t border-navy-100 pt-4">{[[t('useful'),'CONTACTED',true],[t('notRelevant'),'NOT_RELEVANT',false],[t('contacted'),'CONTACTED',null],[t('interested'),'INTERESTED',true],[t('rejected'),'REJECTED',null]].map(([label,status,useful],index)=><button disabled={feedback.isPending} onClick={()=>feedback.mutate({id:rec.id,status:status as string,useful:useful as boolean|null})} className="button secondary !py-2 text-sm" key={`${status}-${index}`}>{label as string}</button>)}</div></div></div>)}
   </div><aside className="card h-fit p-5"><h2 className="flex items-center gap-2 font-extrabold"><Clock3 size={18}/>{t('history')}</h2><div className="mt-4 space-y-2">{histories.map(h=>{const meta=statusMeta[h.status]??{tone:'neutral' as const,label:h.status};return <button key={h.id} onClick={()=>onSelect(h.id)} className={`w-full rounded-xl border p-3 text-left transition ${selected===h.id?'border-orange-500 bg-orange-50':'border-navy-100 hover:bg-navy-50'}`}><div className="flex items-center justify-between gap-2"><Badge tone={meta.tone}>{meta.label}</Badge><span className="text-xs text-navy-500">{formatDateTime(h.createdAt)}</span></div><div className="mt-2 text-sm font-bold text-navy-900">{periodText(h.period)}</div>{h.latencyMs!=null&&<div className="mt-1 text-xs text-navy-500">{t('processingTime')}: {(h.latencyMs/1000).toFixed(1)}s</div>}</button>;})}</div></aside></div>;
 }

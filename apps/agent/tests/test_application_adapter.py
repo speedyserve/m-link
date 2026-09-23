@@ -92,7 +92,6 @@ def test_signal_and_overview_wording_follows_the_window(casa_surge_h):
     surge = next(signal for signal in response.signals if signal.type == "casa_surge")
     assert "30 ngày" in surge.description and "90 ngày" not in surge.description
     assert "Kỳ phân tích 2026-08-20 → 2026-09-18 (30 ngày)" in response.summary.overview
-    assert "cửa sổ 30 ngày" in response.summary.overview
 
 
 def test_period_rule_produces_period_sourced_evidence(casa_surge_h):

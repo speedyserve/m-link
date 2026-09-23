@@ -10,6 +10,7 @@ import {
   Card,
   Customer,
   CustomerInteraction,
+  CustomerLoan,
   Deposit,
 } from '../../database/entities';
 import { MetricsService } from '../metrics/metrics.service';
@@ -41,6 +42,7 @@ export class CustomersService {
     @InjectRepository(BankTransaction) private readonly transactions: Repository<BankTransaction>,
     @InjectRepository(Card) private readonly cards: Repository<Card>,
     @InjectRepository(Deposit) private readonly deposits: Repository<Deposit>,
+    @InjectRepository(CustomerLoan) private readonly loans: Repository<CustomerLoan>,
     @InjectRepository(CustomerInteraction) private readonly interactions: Repository<CustomerInteraction>,
     private readonly rms: RmsService,
     private readonly metrics: MetricsService,
@@ -60,23 +62,36 @@ export class CustomersService {
     const limit = query.limit ?? 20;
     const builder = this.customers.createQueryBuilder('customer').where('customer.rm_id = :rmId', { rmId });
     if (query.search) {
-      builder.andWhere('(customer.full_name ILIKE :search OR customer.customer_code ILIKE :search)', { search: `%${query.search}%` });
+      const phoneSearch = query.search.replace(/\D/g, '').replace(/^84/, '0');
+      builder.andWhere(
+        `(customer.full_name ILIKE :search OR customer.customer_code ILIKE :search${phoneSearch ? " OR regexp_replace(customer.phone, '[^0-9]', '', 'g') LIKE :phoneSearch" : ''})`,
+        { search: `%${query.search}%`, ...(phoneSearch ? { phoneSearch: `%${phoneSearch}%` } : {}) },
+      );
     }
     if (query.segment) builder.andWhere('customer.segment = :segment', { segment: query.segment });
     if (query.tier) builder.andWhere('customer.tier = :tier', { tier: query.tier });
     if (query.status) builder.andWhere('customer.relationship_status = :status', { status: query.status });
     const [items, total] = await builder.orderBy('customer.full_name', 'ASC')
       .skip((page - 1) * limit).take(limit).getManyAndCount();
-    return { items, page, limit, total, totalPages: Math.ceil(total / limit) };
+    const metricsByCustomer = await this.metrics.latestByCustomerIds(items.map((item) => item.id));
+    return {
+      items: items.map((item) => ({ ...item, metrics: metricsByCustomer.get(item.id) ?? null })),
+      page, limit, total, totalPages: Math.ceil(total / limit),
+    };
   }
 
   async detail(id: string, rmId?: string) {
     const customer = await this.assertCustomer(id, rmId);
-    const [accountRows, deposits, cards, metrics, holdings] = await Promise.all([
+    const [accountRows, deposits, cards, metrics, holdings, rmQueue, loans] = await Promise.all([
       this.accounts.findBy({ customerId: id }), this.deposits.findBy({ customerId: id, status: 'ACTIVE' }),
       this.cards.findBy({ customerId: id }), this.metrics.findLatest(id), this.metrics.listHoldings(id),
+      this.metrics.latestForRm(customer.rmId),
+      this.loans.find({ where: { customerId: id, status: 'ACTIVE' }, order: { nextDueDate: 'ASC' } }),
     ]);
     const totalAssets = accountRows.reduce((sum, row) => sum + Number(row.balance), 0) + deposits.reduce((sum, row) => sum + Number(row.principal), 0);
+    // rmQueue is already ordered by priority_score DESC (see MetricsService.latestForRm),
+    // so the row's position there is this customer's contact-priority rank on the RM's desk.
+    const rankIndex = rmQueue.findIndex((row) => row.customer.id === id);
     return {
       ...customer,
       financialSummary: {
@@ -87,6 +102,13 @@ export class CustomersService {
       },
       metrics,
       holdings,
+      loans: loans.map((loan) => ({
+        loanType: loan.loanType, principal: loan.principal, disbursementDate: loan.disbursementDate,
+        interestRate: loan.interestRate, termMonths: loan.termMonths, monthlyPaymentEstimate: loan.monthlyPaymentEstimate,
+        nextDueDate: loan.nextDueDate, status: loan.status,
+      })),
+      priorityRank: rankIndex >= 0 ? rankIndex + 1 : null,
+      priorityRankOf: rmQueue.length,
     };
   }
 
@@ -123,5 +145,9 @@ export class CustomersService {
   async listInteractions(id: string, rmId?: string) {
     await this.assertCustomer(id, rmId);
     return this.interactions.find({ where: { customerId: id }, order: { interactionAt: 'DESC' } });
+  }
+  async listLoans(id: string, rmId?: string) {
+    await this.assertCustomer(id, rmId);
+    return this.loans.find({ where: { customerId: id, status: 'ACTIVE' }, order: { nextDueDate: 'ASC' } });
   }
 }

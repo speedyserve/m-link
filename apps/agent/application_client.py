@@ -27,6 +27,7 @@ class CustomerContext:
     interactions: list[dict] = field(default_factory=list)
     deposits: list[dict] = field(default_factory=list)
     cards: list[dict] = field(default_factory=list)
+    loans: list[dict] = field(default_factory=list)
     # Balances, flows and activity for the analysed window (GET .../period-summary).
     period_summary: dict | None = None
 
@@ -73,6 +74,7 @@ class ApplicationApiClient:
             "interactions": f"{base}/interactions",
             "deposits": f"{base}/deposits",
             "cards": f"{base}/cards",
+            "loans": f"{base}/loans",
         }
         if period_from and period_to:
             paths["period_summary"] = f"{base}/period-summary?from={period_from}&to={period_to}"
@@ -95,6 +97,7 @@ class ApplicationApiClient:
             interactions=responses["interactions"],
             deposits=responses["deposits"],
             cards=responses["cards"],
+            loans=responses["loans"],
             period_summary=responses.get("period_summary"),
         )
 

@@ -13,7 +13,7 @@ def _get_bool(key: str, default: bool = False) -> bool:
 class Settings:
     app_name: str = "M-Link Agent"
     host: str = os.getenv("HOST", "0.0.0.0")
-    port: int = int(os.getenv("PORT", "8080"))
+    port: int = int(os.getenv("PORT", "8081"))
 
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     llm_base_url: str = os.getenv(

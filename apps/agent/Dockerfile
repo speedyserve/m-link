@@ -11,10 +11,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . ./
 
-RUN useradd --create-home --uid 1000 agent
-USER agent
-
-EXPOSE 8080
-
-# GreenNode AgentBase routes all traffic to 8080 and injects PORT at runtime.
+# AgentBase Runtime routes traffic to port 8080; PORT overrides it locally.
 CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]

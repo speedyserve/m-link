@@ -35,7 +35,7 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:
 export function Hero({ eyebrow, title, accent, description, actions }: { eyebrow: string; title: string; accent?: string; description?: string; actions?: ReactNode }) {
   return (
     <section className="workspace-hero">
-      <div className="workspace-hero-content flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="workspace-hero-content flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="workspace-hero-eyebrow">{eyebrow}</p>
           <h1 className="workspace-hero-title">
@@ -49,17 +49,18 @@ export function Hero({ eyebrow, title, accent, description, actions }: { eyebrow
   );
 }
 
-/** KPI tile: soft tinted surface with a light icon chip — brighter than a solid dark chip. */
-export function StatTile({ label, value, icon: Icon, tone = 'navy' }: { label: string; value: ReactNode; icon: LucideIcon; tone?: 'navy' | 'orange' | 'danger' | 'success' }) {
-  return (
-    <div className={`metric-tile metric-tile--${tone}`}>
-      <div className="metric-tile__icon"><Icon size={21} /></div>
-      <div className="min-w-0">
-        <div className="metric-tile__value">{value}</div>
-        <div className="metric-tile__label">{label}</div>
-      </div>
+/** KPI tile: soft tinted surface with a light icon chip — brighter than a solid dark chip. Pass `onClick` to make it act as a filter shortcut into a list below. */
+export function StatTile({ label, value, description, icon: Icon, tone = 'navy', onClick }: { label: string; value: ReactNode; description?: string; icon: LucideIcon; tone?: 'navy' | 'orange' | 'danger' | 'success'; onClick?: () => void }) {
+  const content = <>
+    <div className="metric-tile__icon"><Icon size={21} /></div>
+    <div className="min-w-0">
+      <div className="metric-tile__value">{value}</div>
+      <div className="metric-tile__label">{label}</div>
+      {description && <div className="metric-tile__description">{description}</div>}
     </div>
-  );
+  </>;
+  if (onClick) return <button type="button" onClick={onClick} className={`metric-tile metric-tile--${tone} w-full text-left transition hover:brightness-95 cursor-pointer`}>{content}</button>;
+  return <div className={`metric-tile metric-tile--${tone}`}>{content}</div>;
 }
 
 /** Card header with a tinted icon chip, small eyebrow label and title. */

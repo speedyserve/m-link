@@ -253,6 +253,16 @@ export class MetricsService {
     return metric ? metricToDto(metric) : null;
   }
 
+  async latestByCustomerIds(customerIds: string[]): Promise<Map<string, CustomerMetrics>> {
+    if (!customerIds.length) return new Map();
+    const rows = await this.metrics
+      .createQueryBuilder('m')
+      .where('m.customer_id IN (:...customerIds)', { customerIds })
+      .andWhere('m.as_of_date = (SELECT MAX(m2.as_of_date) FROM customer_metrics m2 WHERE m2.customer_id = m.customer_id)')
+      .getMany();
+    return new Map(rows.map((row) => [row.customerId, metricToDto(row)]));
+  }
+
   async getLatest(customerId: string): Promise<CustomerMetrics> {
     const metric = await this.findLatest(customerId);
     if (!metric) throw new DomainException(404, 'METRICS_NOT_FOUND', 'Customer metrics have not been computed.');

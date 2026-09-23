@@ -1,4 +1,4 @@
-import { Controller, Get, Headers } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
 import { ApiHeader, ApiTags } from '@nestjs/swagger';
 import { requiredRm } from '../../common/http';
 import { DashboardService } from './dashboard.service';
@@ -10,5 +10,8 @@ export class DashboardController {
   constructor(private readonly service: DashboardService) {}
   @Get() get(@Headers('x-rm-id') rmId?: string) {
     return this.service.get(requiredRm(rmId));
+  }
+  @Post('assistant') askAssistant(@Headers('x-rm-id') rmId: string | undefined, @Body('message') message: string) {
+    return this.service.askAssistant(requiredRm(rmId), message ?? '');
   }
 }

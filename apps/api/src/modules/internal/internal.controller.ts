@@ -37,6 +37,9 @@ export class InternalController {
   @Get(':id/interactions') interactions(@Param('id') id: string) {
     return this.customers.listInteractions(id);
   }
+  @Get(':id/loans') loans(@Param('id') id: string) {
+    return this.customers.listLoans(id);
+  }
   @Get(':id/metrics') async metricsDetail(@Param('id') id: string, @Query() query: unknown) {
     await this.customers.assertCustomer(id);
     const { asOf, windowDays } = parseWith(asOfQuerySchema, query);

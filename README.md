@@ -10,7 +10,7 @@ The repository is a pnpm monorepo. It is ready for local development, an API Doc
 | --- | --- |
 | `apps/web` | Next.js Customer 360 UI at port `3000` |
 | `apps/api` | NestJS API, PostgreSQL migrations, seed data, Swagger at port `4000` |
-| `apps/agent` | Python FastAPI analysis service at port `8080` |
+| `apps/agent` | Python FastAPI analysis service at port `8081` |
 | `packages/contracts` | Shared Zod request/response schemas |
 | `packages/ui` | Shared UI package placeholder |
 | `docs` | Architecture, API, Agent contract, data model, and demo scenarios |
@@ -92,7 +92,7 @@ Open these URLs:
 
 - Web: http://localhost:3000
 - API health: http://localhost:4000/health
-- Swagger: http://localhost:4000/docs (development only; disabled when `NODE_ENV=production`)
+- Swagger: http://localhost:4000/docs
 
 ## Run the local Agent end to end
 
@@ -100,7 +100,7 @@ Configure `apps/api/.env` to use the local Agent:
 
 ```dotenv
 AGENT_PROVIDER=greennode
-AGENT_BASE_URL=http://localhost:8080
+AGENT_BASE_URL=http://localhost:8081
 AGENT_API_KEY=<random-local-agent-key>
 INTERNAL_AGENT_TOKEN=<random-local-internal-token>
 ```
@@ -126,8 +126,8 @@ Create the Python environment and start the Agent:
 cd apps/agent
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements-dev.txt
-python -m uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+pip install -r requirements.txt
+python -m uvicorn main:app --host 0.0.0.0 --port 8081 --reload
 ```
 
 Restart `pnpm dev` after changing `apps/api/.env`. The Agent must also be restarted after changing `apps/agent/.env`.
@@ -136,7 +136,7 @@ Restart `pnpm dev` after changing `apps/api/.env`. The Agent must also be restar
 > change keeps answering with the old logic — for example ignoring the analysed period and replying
 > with the default 90-day snapshot for every window. The API detects that case: the analysis then
 > reports `periodApplied: false` and the UI shows "the Agent ignored the selected period". Also make
-> sure only one Agent process is listening on the port (`lsof -nP -iTCP:8080 -sTCP:LISTEN`); a second
+> sure only one Agent process is listening on the port (`lsof -nP -iTCP:8081 -sTCP:LISTEN`); a second
 > one bound to a different interface can shadow the one you just started.
 
 ### Optional: enable GreenNode LLM content generation
@@ -250,39 +250,3 @@ The first command should show an ignore rule for every local environment file. R
 The API Dockerfile accepts Railway-style `PORT` and `DATABASE_URL`. Run migrations as the platform pre-deploy command; never use TypeORM schema synchronization or auto-seed production. Set `CORS_ORIGINS` to the deployed web origin. Deploy the web with `NEXT_PUBLIC_API_BASE_URL` set to the public API URL.
 
 Agent and API must be deployed on a private network or otherwise protect the Agent endpoint with the matching API key. Keep `INTERNAL_AGENT_TOKEN`, `AGENT_API_KEY`, and `LLM_API_KEY` in the platform secret manager, not source control.
-
-### Railway (API) and Vercel (web)
-
-Railway builds `apps/api/Dockerfile` from the repository root. **Select that Dockerfile with the
-`RAILWAY_DOCKERFILE_PATH=apps/api/Dockerfile` service variable, not with `railway.json`.** Railway
-has deprecated config as code and its Railpack builder ignores the file: it auto-detects the pnpm
-workspace, finds no start command and fails the build with `railpack prepare exited with an error`.
-The start command then comes from the image `CMD`.
-
-`preDeployCommand` in `railway.json` does not run either, so migrations are a manual step after a
-schema change — see below. Railway injects `PORT`, so leave it unset and point `DATABASE_URL` at the
-Postgres plugin. Keep `AGENT_PROVIDER=mock` until the Agent is deployed; `AGENT_BASE_URL` is read
-only by `GreenNodeAgentClient`, so a placeholder value is inert while the mock client is selected.
-Switching to `greennode` requires `AGENT_BASE_URL` **and** `AGENT_API_KEY` — the client rejects every
-request with `AGENT_CONFIGURATION_ERROR` when either is missing.
-
-Run migrations and one-off scripts inside the deployed container:
-
-```bash
-railway ssh "node apps/api/dist/database/run-migrations.js"
-```
-
-The production image carries `dist/database/seed.js` together with the `msb-dataset` JSON, so the
-demo dataset loads through a one-off platform command instead of exposing the database publicly:
-
-```bash
-node apps/api/dist/database/seed.js
-```
-
-Seeding truncates every table, so run it once after the first deploy and never from the deploy
-pipeline.
-
-Vercel uses `apps/web` as its root directory and runs the `vercel-build` script, which compiles
-`@mlink/contracts` before `next build`. `NEXT_PUBLIC_API_BASE_URL` is inlined at build time, so
-changing it requires a rebuild rather than a redeploy. Vercel preview deployments get a fresh
-hostname each time and are blocked by CORS unless that origin is added to `CORS_ORIGINS`.

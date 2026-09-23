@@ -342,7 +342,7 @@
     "declaredBehaviour": "Trung tính",
     "declaredRiskAppetite": "Cân bằng",
     "churnWarning": false,
-    "behaviourNote": "KINH DOANH THEO MÙA VỤ: chủ hộ kinh doanh, CASA biến động mạnh theo quý (cao dịp cuối năm/Tết, thấp giữa năm), có vay bổ sung vốn kinh doanh -> test rule BUSINESS_CASHFLOW_VOLATILE (CV cao)"
+    "behaviourNote": "Chủ hộ kinh doanh theo mùa vụ, số dư CASA biến động mạnh theo quý (cao dịp cuối năm/Tết, thấp giữa năm), đang có vay bổ sung vốn kinh doanh"
   },
   {
     "cif": "08103288",
@@ -357,7 +357,7 @@
     "declaredBehaviour": "Tích cực",
     "declaredRiskAppetite": "An toàn",
     "churnWarning": false,
-    "behaviourNote": "KHÁCH HÀNG MỚI: mở CIF chỉ 45 ngày trước (365 ngày trước không có lịch sử) -> test rule NEW_CIF_ONBOARDING & cờ insufficientHistory khi lọc theo kỳ dài"
+    "behaviourNote": "Khách hàng mới mở CIF, chưa đủ lịch sử giao dịch dài hạn để đánh giá toàn diện"
   },
   {
     "cif": "08103425",
@@ -372,7 +372,7 @@
     "declaredBehaviour": "Tích cực",
     "declaredRiskAppetite": "An toàn",
     "churnWarning": false,
-    "behaviourNote": "SỰ KIỆN FD: sổ FD đáo hạn đúng ngày 200 và tái tục kèm gửi thêm (số dư nhảy vọt +80%) -> test rule FD_EVENT theo đúng mốc ngày, khung thời gian bao/không bao mốc này cho kết quả khác nhau"
+    "behaviourNote": "Sổ tiết kiệm vừa đáo hạn và tái tục kèm gửi thêm, số dư tiền gửi tăng mạnh trong kỳ"
   },
   {
     "cif": "08103562",
@@ -387,7 +387,7 @@
     "declaredBehaviour": "Trung tính",
     "declaredRiskAppetite": "Cân bằng",
     "churnWarning": false,
-    "behaviourNote": "CHI TIÊU THẺ CUỐI NĂM: dùng thẻ tín dụng điều độ 9 tháng đầu, chi tiêu bùng nổ (mua sắm Tết) trong quý cuối -> CUR chỉ vượt ngưỡng 80% khi lọc 90 ngày gần nhất"
+    "behaviourNote": "Chi tiêu thẻ tín dụng điều độ 9 tháng đầu năm, tăng vọt trong quý cuối do mua sắm dịp Tết"
   },
   {
     "cif": "08103699",
@@ -402,7 +402,7 @@
     "declaredBehaviour": "Tích cực",
     "declaredRiskAppetite": "Cân bằng",
     "churnWarning": false,
-    "behaviourNote": "TRẢ NỢ TRƯỚC HẠN: đòn bẩy rất cao đầu năm (vay thế chấp lớn), trả bớt gốc mạnh giữa năm nên cuối năm đòn bẩy giảm hẳn -> khung đầu năm vs cuối năm cho kết luận LEVERAGE_HIGH khác nhau"
+    "behaviourNote": "Đã vay thế chấp lớn đầu năm, sau đó trả bớt gốc mạnh giữa năm nên đòn bẩy tài chính giảm rõ rệt về cuối năm"
   },
   {
     "cif": "08103836",
@@ -432,7 +432,7 @@
     "declaredBehaviour": "Trung tính",
     "declaredRiskAppetite": "Cân bằng",
     "churnWarning": false,
-    "behaviourNote": "KHỦNG HOẢNG TẠM THỜI: ổn định đầu năm, sụt giảm mạnh quý 2-3 (biến cố cá nhân), hồi phục về gần mức cũ ở quý 4 -> khung giữa năm vs khung gần nhất cho hai bức tranh trái ngược"
+    "behaviourNote": "Tài chính ổn định đầu năm, sụt giảm mạnh trong quý 2-3 do biến cố cá nhân, sau đó hồi phục dần về gần mức cũ ở quý 4"
   },
   {
     "cif": "08104110",
@@ -447,7 +447,7 @@
     "declaredBehaviour": "Tiêu cực",
     "declaredRiskAppetite": "Cân bằng",
     "churnWarning": true,
-    "behaviourNote": "SA SÚT DẦN DẦN (tăng tốc): chi tiêu Vietlott và rút CASA tăng dần đều, tốc độ xấu đi nhanh hơn về cuối năm -> churn score tính theo cửa sổ ngắn luôn cao hơn cửa sổ dài"
+    "behaviourNote": "Chi tiêu Vietlott và rút CASA tăng dần đều trong năm, mức độ sa sút ngày càng nhanh hơn về cuối năm"
   },
   {
     "cif": "08104247",
@@ -477,7 +477,7 @@
     "declaredBehaviour": "Trung tính",
     "declaredRiskAppetite": "An toàn",
     "churnWarning": false,
-    "behaviourNote": "RỚT HỢP ĐỒNG BẢO HIỂM GIỮA NĂM: đóng phí BANCA NT đều đặn 2 quý đầu rồi dừng hẳn (không đóng tiếp) -> tín hiệu rời bỏ chỉ thấy rõ khi lọc theo nửa cuối năm"
+    "behaviourNote": "Đóng phí bảo hiểm nhân thọ đều đặn 2 quý đầu năm rồi dừng hẳn, không đóng tiếp"
   },
   {
     "cif": "08104521",
@@ -507,7 +507,7 @@
     "declaredBehaviour": "Tiêu cực",
     "declaredRiskAppetite": "Cân bằng",
     "churnWarning": false,
-    "behaviourNote": "LẠM DỤNG THẤU CHI TĂNG DẦN: dư nợ thấu chi tăng đều từng tháng, gần chạm hạn mức vào cuối năm -> rủi ro chỉ rõ nét khi lọc 90-180 ngày gần nhất"
+    "behaviourNote": "Dư nợ thấu chi tăng đều từng tháng, gần chạm hạn mức vào cuối năm"
   },
   {
     "cif": "08104795",
@@ -537,7 +537,7 @@
     "declaredBehaviour": "Trung tính",
     "declaredRiskAppetite": "Cân bằng",
     "churnWarning": false,
-    "behaviourNote": "TẤT TOÁN BOND GIỮA NĂM: Bond đáo hạn đúng ngày 180, tiền gốc+lãi chuyển hết về CASA (Bond về 0, CASA tăng vọt cùng ngày) -> Product Holding 'Bond' cần đọc theo đúng thời điểm"
+    "behaviourNote": "Trái phiếu vừa đáo hạn giữa năm, toàn bộ gốc và lãi đã chuyển về tài khoản CASA"
   },
   {
     "cif": "08105069",
@@ -582,7 +582,7 @@
     "declaredBehaviour": "Tích cực",
     "declaredRiskAppetite": "Rủi ro cao",
     "churnWarning": false,
-    "behaviourNote": "GIAO DỊCH FX THẤT THƯỜNG: có quý giao dịch FX rất dày (nhà xuất nhập khẩu vào mùa), có quý gần như không giao dịch gì -> doanh số FX theo từng khung thời gian chênh lệch rất lớn"
+    "behaviourNote": "Giao dịch ngoại tệ thất thường theo mùa vụ kinh doanh xuất nhập khẩu, có quý rất dày, có quý gần như không phát sinh"
   },
   {
     "cif": "08105480",

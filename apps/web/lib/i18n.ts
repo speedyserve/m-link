@@ -1,16 +1,18 @@
 export const messages = {
   vi: {
     dashboard: 'Tổng quan', customers: 'Khách hàng', welcome: 'Chào buổi sáng', portfolio: 'Danh mục khách hàng',
-    totalCustomers: 'Tổng khách hàng', needAttention: 'Cần chú ý', highPriority: 'Ưu tiên cao', customerCare: 'Chăm sóc trước',
+    totalCustomers: 'Tổng khách hàng', needAttention: 'Cần giữ chân', highPriority: 'Có thể tư vấn', customerCare: 'Cần chăm sóc',
+    retentionHint: 'Rủi ro rời bỏ cao', opportunityHint: 'Rủi ro rời bỏ thấp', careHint: 'Tạm thời không bán thêm',
     priorityCustomers: 'Ưu tiên hôm nay', viewCustomer: 'Mở hồ sơ', search: 'Tìm kiếm', segment: 'Phân khúc', all: 'Tất cả',
-    customer360: 'Hồ sơ 360°', overview: 'Tổng quan', transactions: 'Giao dịch', cards: 'Thẻ', deposits: 'Tiền gửi', interactions: 'Tương tác', aiInsights: 'AI Insights',
+    customer360: 'HỒ SƠ 360°', overview: 'Tổng quan', transactions: 'Giao dịch', cards: 'Thẻ', deposits: 'Tiền gửi', loans: 'Vay', interactions: 'Tương tác', aiInsights: 'AI Insights',
     totalAssets: 'Tổng tài sản', casa: 'CASA', creditLimit: 'Hạn mức tín dụng', recentTransactions: 'Giao dịch gần đây',
     analyze: 'Phân tích với M-Link', analyzing: 'M-Link đang phân tích khách hàng...', summary: 'Tóm tắt khách hàng', signals: 'Tín hiệu', nextBestAction: 'Hành động tốt nhất', why: 'Tại sao', evidence: 'Bằng chứng', suggestedScript: 'Kịch bản gợi ý',
     careFirst: 'ƯU TIÊN CHĂM SÓC KHÁCH HÀNG', doNotSell: 'KHÔNG BÁN HÀNG', noAction: 'KHÔNG KHUYẾN NGHỊ HÀNH ĐỘNG', doNotDisturb: 'Tránh liên hệ không cần thiết.',
+    signalUrgencyHigh: 'Cần xử lý gấp', signalUrgencyMedium: 'Nên theo dõi', signalUrgencyLow: 'Thông tin thêm',
     history: 'Lịch sử phân tích', confidence: 'Độ tin cậy', useful: 'Hữu ích', notRelevant: 'Không phù hợp', contacted: 'Đã liên hệ', interested: 'Khách quan tâm', rejected: 'Khách từ chối', empty: 'Chưa có dữ liệu', error: 'Không thể tải dữ liệu. Vui lòng thử lại.',
-    tier: 'Phân hạng', churnRisk: 'Rủi ro rời bỏ', churnHigh: 'Rời bỏ CAO', churnMedium: 'Rời bỏ TB', churnLow: 'Rời bỏ thấp', metrics: 'Chỉ số đánh giá', asOf: 'Số liệu đến ngày',
-    recency: 'Recency (ngày không GD)', frequency90: 'Số GD trong cửa sổ', frequencyPrev90: 'Số GD cửa sổ liền trước', casaAvg90: 'CASA bình quân', casaTrend: 'Xu hướng CASA', casaCv: 'Biến động CASA (CV)',
-    cardUtilization: 'Tỷ lệ dùng hạn mức thẻ (CUR)', leverage: 'Đòn bẩy (Vay/Tài sản)', productHolding: 'Khai thác sản phẩm (PHS)', riskAppetite: 'Khẩu vị rủi ro (RAS)', totalAssetValue: 'Tổng tài sản (TAV)', fxVolume: 'Doanh số FX 12 tháng',
+    tier: 'Phân hạng', churnRisk: 'Rủi ro rời bỏ', churnHigh: 'Rời bỏ CAO', churnMedium: 'Rời bỏ TB', churnLow: 'Rời bỏ THẤP', metrics: 'Chỉ số đánh giá', asOf: 'Số liệu đến ngày',
+    recency: 'Số ngày không giao dịch', frequency90: 'Số GD trong cửa sổ', frequencyPrev90: 'Số GD cửa sổ liền trước', casaAvg90: 'CASA bình quân', casaTrend: 'Xu hướng CASA', casaCv: 'Độ biến động CASA',
+    cardUtilization: 'Tỷ lệ dùng hạn mức thẻ', leverage: 'Đòn bẩy nợ trên tài sản', productHolding: 'Khai thác sản phẩm', riskAppetite: 'Khẩu vị rủi ro', totalAssetValue: 'Tổng tài sản', fxVolume: 'Doanh số FX 12 tháng',
     valueScore: 'Quy mô tài sản', churnScore: 'Nguy cơ rời bỏ', crossSellScore: 'Cơ hội bán thêm', priorityScore: 'Mức ưu tiên liên hệ',
     valueScoreHint: '/100 · so với khách hàng có tài sản lớn nhất', churnScoreHint: '/100 · càng cao càng dễ rời bỏ',
     crossSellScoreHint: '/100 · tính theo % sản phẩm MSB chưa sở hữu', priorityScoreHint: '/100 · dùng để xếp hạng trong hàng đợi RB',
@@ -36,16 +38,18 @@ export const messages = {
   },
   en: {
     dashboard: 'Dashboard', customers: 'Customers', welcome: 'Good morning', portfolio: 'Customer portfolio',
-    totalCustomers: 'Total customers', needAttention: 'Needs attention', highPriority: 'High priority', customerCare: 'Customer care',
+    totalCustomers: 'Total customers', needAttention: 'Retain first', highPriority: 'Ready to advise', customerCare: 'Needs care',
+    retentionHint: 'High churn risk', opportunityHint: 'Low churn risk', careHint: 'Pause further sales',
     priorityCustomers: "Today's priorities", viewCustomer: 'Open customer', search: 'Search', segment: 'Segment', all: 'All',
-    customer360: 'Customer 360°', overview: 'Overview', transactions: 'Transactions', cards: 'Cards', deposits: 'Deposits', interactions: 'Interactions', aiInsights: 'AI Insights',
+    customer360: 'Customer 360°', overview: 'Overview', transactions: 'Transactions', cards: 'Cards', deposits: 'Deposits', loans: 'Loans', interactions: 'Interactions', aiInsights: 'AI Insights',
     totalAssets: 'Total assets', casa: 'CASA', creditLimit: 'Credit limit', recentTransactions: 'Recent transactions',
     analyze: 'Analyze with M-Link', analyzing: 'M-Link is analyzing this customer...', summary: 'Customer summary', signals: 'Signals', nextBestAction: 'Next Best Action', why: 'Why', evidence: 'Evidence', suggestedScript: 'Suggested script',
     careFirst: 'CUSTOMER CARE FIRST', doNotSell: 'DO NOT SELL', noAction: 'NO ACTION RECOMMENDED', doNotDisturb: 'Avoid unnecessary outreach.',
+    signalUrgencyHigh: 'Needs urgent action', signalUrgencyMedium: 'Worth monitoring', signalUrgencyLow: 'For information',
     history: 'Analysis history', confidence: 'Confidence', useful: 'Useful', notRelevant: 'Not relevant', contacted: 'Contacted', interested: 'Customer interested', rejected: 'Customer rejected', empty: 'No data yet', error: 'Unable to load data. Please try again.',
-    tier: 'Tier', churnRisk: 'Churn risk', churnHigh: 'Churn HIGH', churnMedium: 'Churn MEDIUM', churnLow: 'Churn low', metrics: 'Evaluation metrics', asOf: 'As of',
-    recency: 'Recency (days inactive)', frequency90: 'Transactions in window', frequencyPrev90: 'Transactions, previous window', casaAvg90: 'CASA average', casaTrend: 'CASA trend', casaCv: 'CASA volatility (CV)',
-    cardUtilization: 'Card utilisation (CUR)', leverage: 'Leverage (loans / assets)', productHolding: 'Product holding (PHS)', riskAppetite: 'Risk appetite (RAS)', totalAssetValue: 'Total asset value (TAV)', fxVolume: 'FX volume, 12 months',
+    tier: 'Tier', churnRisk: 'Churn risk', churnHigh: 'Churn HIGH', churnMedium: 'Churn MEDIUM', churnLow: 'Churn LOW', metrics: 'Evaluation metrics', asOf: 'As of',
+    recency: 'Days since last transaction', frequency90: 'Transactions in window', frequencyPrev90: 'Transactions, previous window', casaAvg90: 'CASA average', casaTrend: 'CASA trend', casaCv: 'CASA volatility',
+    cardUtilization: 'Card utilisation', leverage: 'Debt-to-asset leverage', productHolding: 'Product holding', riskAppetite: 'Risk appetite', totalAssetValue: 'Total asset value', fxVolume: 'FX volume, 12 months',
     valueScore: 'Asset size', churnScore: 'Churn risk', crossSellScore: 'Cross-sell opportunity', priorityScore: 'Contact priority',
     valueScoreHint: '/100 · vs. the largest customer by assets', churnScoreHint: '/100 · higher means more likely to churn',
     crossSellScoreHint: '/100 · based on % of MSB products not yet held', priorityScoreHint: '/100 · used to rank the RB queue',
@@ -73,4 +77,3 @@ export const messages = {
 
 export type Locale = keyof typeof messages;
 export type MessageKey = keyof typeof messages.vi;
-
